@@ -1,0 +1,18 @@
+[package]
+name = "noson"
+version = "0.1.0"
+edition = "2024"
+license = "MIT OR Apache-2.0"
+description = "Generate random JSON values from a JSON Schema"
+repository = "https://github.com/glennib/noson"
+keywords = ["json-schema", "json", "generator", "testing", "fake-data"]
+categories = ["development-tools::testing"]
+readme = "README.md"
+
+[dependencies]
+rand = "0.10.0"
+serde_json = "1"
+thiserror = "2"
+
+[dev-dependencies]
+jsonschema = "0.42.0"
