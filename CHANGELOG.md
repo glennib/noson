@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2](https://github.com/glennib/noson/compare/v0.1.1...v0.1.2) - 2026-02-16
+
+### Fixed
+
+- *(ci)* add contents:write permission to release-plz workflow
+
+### Other
+
+- add installation section and clarify generation behavior
+
 ## [0.1.1](https://github.com/glennib/noson/compare/v0.1.0...v0.1.1) - 2026-02-16
 
 ### Fixed
