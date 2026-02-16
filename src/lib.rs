@@ -47,15 +47,13 @@
 //!
 //! - **String**: `pattern`, `format`, `contentEncoding`, `contentMediaType`
 //! - **Numeric**: `multipleOf`
-//! - **Object**: `additionalProperties`, `patternProperties`,
-//!   `propertyNames`, `minProperties`, `maxProperties`,
-//!   `unevaluatedProperties`
-//! - **Array**: `prefixItems`, `additionalItems`, `contains`,
-//!   `minContains`, `maxContains`, `uniqueItems`, `unevaluatedItems`
+//! - **Object**: `additionalProperties`, `patternProperties`, `propertyNames`,
+//!   `minProperties`, `maxProperties`, `unevaluatedProperties`
+//! - **Array**: `prefixItems`, `additionalItems`, `contains`, `minContains`,
+//!   `maxContains`, `uniqueItems`, `unevaluatedItems`
 //! - **Composition**: `not`, `if`/`then`/`else`
 //! - **Dependencies**: `dependentRequired`, `dependentSchemas`
-//! - **References**: external `$ref` (http/file URIs), `$dynamicRef`,
-//!   `$anchor`
+//! - **References**: external `$ref` (http/file URIs), `$dynamicRef`, `$anchor`
 //! - **Type unions**: `"type": ["string", "null"]` (array form of `type`)
 
 mod error;
