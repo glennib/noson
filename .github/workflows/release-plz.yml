@@ -3,6 +3,7 @@ name: Release-plz
 permissions:
   pull-requests: write
   contents: write
+  id-token: write
 
 on:
   push:
@@ -13,8 +14,6 @@ jobs:
   release-plz-release:
     name: Release-plz release
     runs-on: ubuntu-latest
-    permissions:
-      id-token: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
