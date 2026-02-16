@@ -312,6 +312,12 @@ fn generate_array(
         .and_then(|v| v.as_u64())
         .unwrap_or(min_items.max(3) as u64) as usize;
 
+    if min_items > max_items {
+        return Err(Error::ConflictingConstraints {
+            message: format!("minItems ({min_items}) > maxItems ({max_items})"),
+        });
+    }
+
     let count = rng.random_range(min_items..=max_items);
 
     let item_schema = obj.get("items").cloned().unwrap_or(Value::Bool(true));
