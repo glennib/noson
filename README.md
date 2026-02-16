@@ -5,7 +5,16 @@ A Rust library that generates example JSON data from a JSON Schema.
 Given a JSON Schema as a `serde_json::Value`, `noson` produces a random JSON
 value that validates against it.
 
+## Installation
+
+```sh
+cargo add noson
+```
+
 ## Usage
+
+The caller provides the random number generator, so output is reproducible when
+a seeded RNG is used.
 
 ```rust
 use rand::SeedableRng;
@@ -28,6 +37,9 @@ let example = noson::generate(&schema, &mut rng).unwrap();
 // example is a random JSON value that validates against the schema
 println!("{}", serde_json::to_string_pretty(&example).unwrap());
 ```
+
+Required properties are always included; optional properties are included with
+50% probability. Recursive schemas are supported up to a nesting depth of 16.
 
 ## Supported Schema Features
 
