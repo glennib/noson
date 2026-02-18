@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/glennib/noson/compare/v0.1.2...v0.1.3) - 2026-02-18
+
+### Added
+
+- add `format: "date"`, `"time"`, and `"duration"` support for string generation
+- add `format: "date-time"` support for string generation
+
+### Other
+
+- cargo fmt
+- *(deps)* update actions/cache action to v5
+- Add renovate.json
+
 ## [0.1.2](https://github.com/glennib/noson/compare/v0.1.1...v0.1.2) - 2026-02-16
 
 ### Fixed
