@@ -663,12 +663,21 @@ mod tests {
             assert_eq!(parts.len(), 2, "should have date and time parts: {s}");
             let date_parts: Vec<i32> = parts[0].split('-').map(|p| p.parse().unwrap()).collect();
             let time_parts: Vec<i32> = parts[1].split(':').map(|p| p.parse().unwrap()).collect();
-            assert!((1970..=2099).contains(&date_parts[0]), "year out of range: {s}");
+            assert!(
+                (1970..=2099).contains(&date_parts[0]),
+                "year out of range: {s}"
+            );
             assert!((1..=12).contains(&date_parts[1]), "month out of range: {s}");
             assert!((1..=31).contains(&date_parts[2]), "day out of range: {s}");
             assert!((0..=23).contains(&time_parts[0]), "hour out of range: {s}");
-            assert!((0..=59).contains(&time_parts[1]), "minute out of range: {s}");
-            assert!((0..=59).contains(&time_parts[2]), "second out of range: {s}");
+            assert!(
+                (0..=59).contains(&time_parts[1]),
+                "minute out of range: {s}"
+            );
+            assert!(
+                (0..=59).contains(&time_parts[2]),
+                "second out of range: {s}"
+            );
         }
     }
 
@@ -797,13 +806,21 @@ mod tests {
 
     #[test]
     fn test_string_format_date_time_ignores_length_constraints() {
-        let schema = json!({"type": "string", "format": "date-time", "minLength": 1000, "maxLength": 2000});
+        let schema =
+            json!({"type": "string", "format": "date-time", "minLength": 1000, "maxLength": 2000});
         let mut rng = seeded_rng();
         let result = generate(&schema, &mut rng).expect("generation should succeed");
         let s = result.as_str().unwrap();
         // date-time format should take precedence, producing a ~20 char string
-        assert!(s.len() < 100, "format should override length constraints, got len {}", s.len());
-        assert!(validate_with_formats(&json!({"type": "string", "format": "date-time"}), &result));
+        assert!(
+            s.len() < 100,
+            "format should override length constraints, got len {}",
+            s.len()
+        );
+        assert!(validate_with_formats(
+            &json!({"type": "string", "format": "date-time"}),
+            &result
+        ));
     }
 
     // ── Integration (bulk validation) ──
