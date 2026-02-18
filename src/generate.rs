@@ -157,6 +157,12 @@ fn random_alphanumeric_string(rng: &mut impl Rng, len: usize) -> String {
 }
 
 fn generate_string(obj: &Map<String, Value>, rng: &mut impl Rng) -> Result<Value, Error> {
+    if let Some(Value::String(format)) = obj.get("format")
+        && let Some(value) = generate_formatted_string(format, rng)?
+    {
+        return Ok(value);
+    }
+
     let min_len = obj.get("minLength").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
     let max_len = obj
         .get("maxLength")
@@ -171,6 +177,28 @@ fn generate_string(obj: &Map<String, Value>, rng: &mut impl Rng) -> Result<Value
 
     let len = rng.random_range(min_len..=max_len);
     Ok(Value::String(random_alphanumeric_string(rng, len)))
+}
+
+fn generate_formatted_string(format: &str, rng: &mut impl Rng) -> Result<Option<Value>, Error> {
+    match format {
+        "date-time" => generate_date_time(rng).map(Some),
+        _ => Ok(None),
+    }
+}
+
+fn generate_date_time(rng: &mut impl Rng) -> Result<Value, Error> {
+    let year = rng.random_range(1970..=2099i16);
+    let month = rng.random_range(1..=12i8);
+    let max_day = jiff::civil::Date::new(year, month, 1)
+        .expect("valid date")
+        .days_in_month();
+    let day = rng.random_range(1..=max_day);
+    let hour = rng.random_range(0..=23i8);
+    let minute = rng.random_range(0..=59i8);
+    let second = rng.random_range(0..=59i8);
+    let dt = jiff::civil::DateTime::new(year, month, day, hour, minute, second, 0)
+        .expect("valid datetime");
+    Ok(Value::String(format!("{dt}Z")))
 }
 
 fn generate_integer(obj: &Map<String, Value>, rng: &mut impl Rng) -> Result<Value, Error> {

@@ -34,6 +34,7 @@
 //! - **Constraints**: `minimum`/`maximum`,
 //!   `exclusiveMinimum`/`exclusiveMaximum`, `minLength`/`maxLength`,
 //!   `minItems`/`maxItems`
+//! - **Format**: `date-time` (RFC 3339)
 //! - **Enum / Const**: `enum`, `const`
 //! - **Composition**: `allOf`, `anyOf`, `oneOf`
 //! - **References**: `$ref` resolved against `$defs` / `definitions`
@@ -45,7 +46,8 @@
 //! using them will either be silently ignored (the keyword has no effect on
 //! generation) or, in the case of external `$ref`, return an error.
 //!
-//! - **String**: `pattern`, `format`, `contentEncoding`, `contentMediaType`
+//! - **String**: `pattern`, `contentEncoding`, `contentMediaType`, `format`
+//!   (only `date-time` is supported so far)
 //! - **Numeric**: `multipleOf`
 //! - **Object**: `additionalProperties`, `patternProperties`, `propertyNames`,
 //!   `minProperties`, `maxProperties`, `unevaluatedProperties`
@@ -625,6 +627,96 @@ mod tests {
         });
         generate_and_validate_n(&schema, 100);
     }
+
+    // ── Format ──
+
+    fn validate_with_formats(schema: &Value, instance: &Value) -> bool {
+        jsonschema::options()
+            .should_validate_formats(true)
+            .build(schema)
+            .expect("valid schema")
+            .is_valid(instance)
+    }
+
+    #[test]
+    fn test_string_format_date_time() {
+        let schema = json!({"type": "string", "format": "date-time"});
+        let mut rng = seeded_rng();
+        for i in 0..100 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                validate_with_formats(&schema, &result),
+                "sample {i} does not validate as date-time.\nvalue: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_string_format_date_time_structure() {
+        let schema = json!({"type": "string", "format": "date-time"});
+        let mut rng = seeded_rng();
+        for _ in 0..100 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let s = result.as_str().unwrap();
+            // Expected format: YYYY-MM-DDThh:mm:ssZ
+            assert!(s.ends_with('Z'), "should end with Z: {s}");
+            let parts: Vec<&str> = s.trim_end_matches('Z').split('T').collect();
+            assert_eq!(parts.len(), 2, "should have date and time parts: {s}");
+            let date_parts: Vec<i32> = parts[0].split('-').map(|p| p.parse().unwrap()).collect();
+            let time_parts: Vec<i32> = parts[1].split(':').map(|p| p.parse().unwrap()).collect();
+            assert!((1970..=2099).contains(&date_parts[0]), "year out of range: {s}");
+            assert!((1..=12).contains(&date_parts[1]), "month out of range: {s}");
+            assert!((1..=31).contains(&date_parts[2]), "day out of range: {s}");
+            assert!((0..=23).contains(&time_parts[0]), "hour out of range: {s}");
+            assert!((0..=59).contains(&time_parts[1]), "minute out of range: {s}");
+            assert!((0..=59).contains(&time_parts[2]), "second out of range: {s}");
+        }
+    }
+
+    #[test]
+    fn test_string_format_date_time_feb_leap_year() {
+        let schema = json!({"type": "string", "format": "date-time"});
+        let mut rng = seeded_rng();
+        for _ in 0..2000 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let s = result.as_str().unwrap();
+            let parts: Vec<&str> = s.trim_end_matches('Z').split('T').collect();
+            let date_parts: Vec<i32> = parts[0].split('-').map(|p| p.parse().unwrap()).collect();
+            let year = date_parts[0];
+            let month = date_parts[1];
+            let day = date_parts[2];
+            if month == 2 {
+                let is_leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+                let max_day = if is_leap { 29 } else { 28 };
+                assert!(
+                    day <= max_day,
+                    "Feb day {day} exceeds max {max_day} for year {year}: {s}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn test_string_format_unknown_falls_back() {
+        let schema = json!({"type": "string", "format": "unknown-format"});
+        let mut rng = seeded_rng();
+        let result = generate(&schema, &mut rng);
+        assert!(result.is_ok(), "unknown format should not error");
+        assert!(result.unwrap().is_string());
+    }
+
+    #[test]
+    fn test_string_format_date_time_ignores_length_constraints() {
+        let schema = json!({"type": "string", "format": "date-time", "minLength": 1000, "maxLength": 2000});
+        let mut rng = seeded_rng();
+        let result = generate(&schema, &mut rng).expect("generation should succeed");
+        let s = result.as_str().unwrap();
+        // date-time format should take precedence, producing a ~20 char string
+        assert!(s.len() < 100, "format should override length constraints, got len {}", s.len());
+        assert!(validate_with_formats(&json!({"type": "string", "format": "date-time"}), &result));
+    }
+
+    // ── Integration (bulk validation) ──
 
     #[test]
     fn test_schema_with_refs() {
