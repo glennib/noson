@@ -34,7 +34,7 @@
 //! - **Constraints**: `minimum`/`maximum`,
 //!   `exclusiveMinimum`/`exclusiveMaximum`, `minLength`/`maxLength`,
 //!   `minItems`/`maxItems`
-//! - **Format**: `date-time` (RFC 3339)
+//! - **Format**: `date-time`, `date`, `time`, `duration`
 //! - **Enum / Const**: `enum`, `const`
 //! - **Composition**: `allOf`, `anyOf`, `oneOf`
 //! - **References**: `$ref` resolved against `$defs` / `definitions`
@@ -46,8 +46,7 @@
 //! using them will either be silently ignored (the keyword has no effect on
 //! generation) or, in the case of external `$ref`, return an error.
 //!
-//! - **String**: `pattern`, `contentEncoding`, `contentMediaType`, `format`
-//!   (only `date-time` is supported so far)
+//! - **String**: `pattern`, `contentEncoding`, `contentMediaType`
 //! - **Numeric**: `multipleOf`
 //! - **Object**: `additionalProperties`, `patternProperties`, `propertyNames`,
 //!   `minProperties`, `maxProperties`, `unevaluatedProperties`
@@ -693,6 +692,97 @@ mod tests {
                     "Feb day {day} exceeds max {max_day} for year {year}: {s}"
                 );
             }
+        }
+    }
+
+    #[test]
+    fn test_string_format_date() {
+        let schema = json!({"type": "string", "format": "date"});
+        let mut rng = seeded_rng();
+        for i in 0..100 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                validate_with_formats(&schema, &result),
+                "sample {i} does not validate as date.\nvalue: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_string_format_date_structure() {
+        let schema = json!({"type": "string", "format": "date"});
+        let mut rng = seeded_rng();
+        for _ in 0..100 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let s = result.as_str().unwrap();
+            let parts: Vec<i32> = s.split('-').map(|p| p.parse().unwrap()).collect();
+            assert_eq!(parts.len(), 3, "should have 3 date parts: {s}");
+            assert!((1970..=2099).contains(&parts[0]), "year out of range: {s}");
+            assert!((1..=12).contains(&parts[1]), "month out of range: {s}");
+            assert!((1..=31).contains(&parts[2]), "day out of range: {s}");
+        }
+    }
+
+    #[test]
+    fn test_string_format_time() {
+        let schema = json!({"type": "string", "format": "time"});
+        let mut rng = seeded_rng();
+        for i in 0..100 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                validate_with_formats(&schema, &result),
+                "sample {i} does not validate as time.\nvalue: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_string_format_time_structure() {
+        let schema = json!({"type": "string", "format": "time"});
+        let mut rng = seeded_rng();
+        for _ in 0..100 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let s = result.as_str().unwrap();
+            assert!(s.ends_with('Z'), "should end with Z: {s}");
+            let parts: Vec<i32> = s
+                .trim_end_matches('Z')
+                .split(':')
+                .map(|p| p.parse().unwrap())
+                .collect();
+            assert_eq!(parts.len(), 3, "should have 3 time parts: {s}");
+            assert!((0..=23).contains(&parts[0]), "hour out of range: {s}");
+            assert!((0..=59).contains(&parts[1]), "minute out of range: {s}");
+            assert!((0..=59).contains(&parts[2]), "second out of range: {s}");
+        }
+    }
+
+    #[test]
+    fn test_string_format_duration() {
+        let schema = json!({"type": "string", "format": "duration"});
+        let mut rng = seeded_rng();
+        let validator = jsonschema::options()
+            .should_validate_formats(true)
+            .with_draft(jsonschema::Draft::Draft201909)
+            .build(&schema)
+            .expect("valid schema");
+        for i in 0..100 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                validator.is_valid(&result),
+                "sample {i} does not validate as duration.\nvalue: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_string_format_duration_structure() {
+        let schema = json!({"type": "string", "format": "duration"});
+        let mut rng = seeded_rng();
+        for _ in 0..100 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let s = result.as_str().unwrap();
+            assert!(s.starts_with('P'), "duration should start with P: {s}");
+            assert!(s.len() > 1, "duration should have components after P: {s}");
         }
     }
 

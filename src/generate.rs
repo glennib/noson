@@ -182,6 +182,9 @@ fn generate_string(obj: &Map<String, Value>, rng: &mut impl Rng) -> Result<Value
 fn generate_formatted_string(format: &str, rng: &mut impl Rng) -> Result<Option<Value>, Error> {
     match format {
         "date-time" => generate_date_time(rng).map(Some),
+        "date" => generate_date(rng).map(Some),
+        "time" => generate_time(rng).map(Some),
+        "duration" => generate_duration(rng).map(Some),
         _ => Ok(None),
     }
 }
@@ -199,6 +202,104 @@ fn generate_date_time(rng: &mut impl Rng) -> Result<Value, Error> {
     let dt = jiff::civil::DateTime::new(year, month, day, hour, minute, second, 0)
         .expect("valid datetime");
     Ok(Value::String(format!("{dt}Z")))
+}
+
+fn generate_date(rng: &mut impl Rng) -> Result<Value, Error> {
+    let year = rng.random_range(1970..=2099i16);
+    let month = rng.random_range(1..=12i8);
+    let max_day = jiff::civil::Date::new(year, month, 1)
+        .expect("valid date")
+        .days_in_month();
+    let day = rng.random_range(1..=max_day);
+    let date = jiff::civil::Date::new(year, month, day).expect("valid date");
+    Ok(Value::String(format!("{date}")))
+}
+
+fn generate_time(rng: &mut impl Rng) -> Result<Value, Error> {
+    let hour = rng.random_range(0..=23i8);
+    let minute = rng.random_range(0..=59i8);
+    let second = rng.random_range(0..=59i8);
+    let time = jiff::civil::Time::new(hour, minute, second, 0).expect("valid time");
+    Ok(Value::String(format!("{time}Z")))
+}
+
+fn generate_duration(rng: &mut impl Rng) -> Result<Value, Error> {
+    let use_weeks = rng.random_bool(0.5);
+    if use_weeks {
+        let weeks = rng.random_range(1..=52u32);
+        return Ok(Value::String(format!("P{weeks}W")));
+    }
+
+    // Mixed duration: randomly include components, ensuring at least one is present
+    loop {
+        let years = if rng.random_bool(0.3) {
+            Some(rng.random_range(0..=10u32))
+        } else {
+            None
+        };
+        let months = if rng.random_bool(0.3) {
+            Some(rng.random_range(0..=11u32))
+        } else {
+            None
+        };
+        let days = if rng.random_bool(0.3) {
+            Some(rng.random_range(0..=30u32))
+        } else {
+            None
+        };
+        let hours = if rng.random_bool(0.3) {
+            Some(rng.random_range(0..=23u32))
+        } else {
+            None
+        };
+        let minutes = if rng.random_bool(0.3) {
+            Some(rng.random_range(0..=59u32))
+        } else {
+            None
+        };
+        let seconds = if rng.random_bool(0.3) {
+            Some(rng.random_range(0..=59u32))
+        } else {
+            None
+        };
+
+        let has_any = years.is_some()
+            || months.is_some()
+            || days.is_some()
+            || hours.is_some()
+            || minutes.is_some()
+            || seconds.is_some();
+        if !has_any {
+            continue;
+        }
+
+        let mut s = String::from("P");
+        if let Some(y) = years {
+            s.push_str(&format!("{y}Y"));
+        }
+        if let Some(m) = months {
+            s.push_str(&format!("{m}M"));
+        }
+        if let Some(d) = days {
+            s.push_str(&format!("{d}D"));
+        }
+
+        let has_time = hours.is_some() || minutes.is_some() || seconds.is_some();
+        if has_time {
+            s.push('T');
+            if let Some(h) = hours {
+                s.push_str(&format!("{h}H"));
+            }
+            if let Some(min) = minutes {
+                s.push_str(&format!("{min}M"));
+            }
+            if let Some(sec) = seconds {
+                s.push_str(&format!("{sec}S"));
+            }
+        }
+
+        return Ok(Value::String(s));
+    }
 }
 
 fn generate_integer(obj: &Map<String, Value>, rng: &mut impl Rng) -> Result<Value, Error> {

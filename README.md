@@ -46,7 +46,7 @@ Required properties are always included; optional properties are included with
 - **Types**: `null`, `boolean`, `string`, `integer`, `number`, `object`, `array`
 - **Constraints**: `minimum`/`maximum`, `exclusiveMinimum`/`exclusiveMaximum`,
   `minLength`/`maxLength`, `minItems`/`maxItems`
-- **Format**: `date-time` (RFC 3339)
+- **Format**: `date-time`, `date`, `time`, `duration`
 - **Enum / Const**: `enum`, `const`
 - **Composition**: `allOf`, `anyOf`, `oneOf`
 - **References**: `$ref` resolved against `$defs` / `definitions`
@@ -58,8 +58,7 @@ The following JSON Schema features are **not** currently handled. Schemas using
 them will either be silently ignored (the keyword has no effect on generation)
 or, in the case of external `$ref`, return an error.
 
-- **String**: `pattern`, `contentEncoding`, `contentMediaType`, `format`
-  (only `date-time` is supported so far)
+- **String**: `pattern`, `contentEncoding`, `contentMediaType`
 - **Numeric**: `multipleOf`
 - **Object**: `additionalProperties`, `patternProperties`, `propertyNames`,
   `minProperties`, `maxProperties`, `unevaluatedProperties`
@@ -74,7 +73,7 @@ or, in the case of external `$ref`, return an error.
 
 - **Builder/configuration API** -- customizable string length ranges, array
   sizes, max recursion depth
-- **`format` generators** -- `date`, `time`, `duration`, `email`, `uri`, `uuid`, etc.
+- **`format` generators** -- `email`, `uri`, `uuid`, etc.
 - **`pattern` support** -- regex-based string generation via `rand_regex`
 - **`additionalProperties`** generation
 - **`prefixItems`**, `contains`
