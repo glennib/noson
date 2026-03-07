@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4](https://github.com/glennib/noson/compare/v0.1.3...v0.1.4) - 2026-03-07
+
+### Other
+
+- *(deps)* update rust crate jsonschema to v0.44.1
+- *(deps)* update rust crate jiff to v0.2.23
+- Merge pull request #12 from glennib/renovate/jsonschema-0.x
+- *(deps)* update rust crate jsonschema to 0.44.0
+
 ## [0.1.3](https://github.com/glennib/noson/compare/v0.1.2...v0.1.3) - 2026-02-18
 
 ### Added
