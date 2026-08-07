@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0](https://github.com/glennib/noson/compare/v0.1.6...v0.2.0) - 2026-08-07
+
+### Added
+
+- support the `if`/`then`/`else` keywords
+- support the `dependentRequired` keyword
+- support the `prefixItems` keyword
+- support the `multipleOf` keyword
+- make object property selection count-aware, synthesize map entries
+- support the `uniqueItems` keyword
+- add format generators for uuid, email, uri, hostname, ipv4, ipv6
+- [**breaking**] combine composition keywords with their siblings
+- support `type` as an array of type names
+
+### Fixed
+
+- make `pattern` generation respect `minLength`/`maxLength`
+
+### Other
+
+- run rustfmt via the nightly toolchain
+- fmt
+- instruct agents to mark breaking changes in commit messages
+- add AI-drafted schema corpus and integration harness
+
 ## [0.1.6](https://github.com/glennib/noson/compare/v0.1.5...v0.1.6) - 2026-08-07
 
 ### Added
