@@ -1042,16 +1042,18 @@ fn generate_unique_array(
     Ok(Value::Array(items))
 }
 
-const COMPOSITION_KEYWORDS: [&str; 4] = ["$ref", "allOf", "anyOf", "oneOf"];
+const COMPOSITION_KEYWORDS: [&str; 7] = ["$ref", "allOf", "anyOf", "oneOf", "if", "then", "else"];
+
+const CONDITIONAL_KEYWORDS: [&str; 3] = ["if", "then", "else"];
 
 /// Generate from a schema whose top level contains composition keywords.
 ///
 /// Keywords at one schema level are conjunctive, so the sibling keywords,
-/// the resolved `$ref` target, all `allOf` members, and one picked branch
-/// each from `anyOf` and `oneOf` are merged into a single schema, which is
-/// then generated from. When a picked branch cannot be merged or its merged
-/// schema fails to generate, the remaining branch combinations are tried
-/// before giving up with the last error.
+/// the resolved `$ref` target, all `allOf` members, one picked branch each
+/// from `anyOf` and `oneOf`, and one `if`/`then`/`else` branch are merged
+/// into a single schema, which is then generated from. When a picked branch
+/// cannot be merged or its merged schema fails to generate, the remaining
+/// branch combinations are tried before giving up with the last error.
 fn generate_composed(
     ctx: &Context,
     obj: &Map<String, Value>,
@@ -1099,37 +1101,176 @@ fn generate_composed(
     let any_of = branch_list(obj, "anyOf")?;
     let one_of = branch_list(obj, "oneOf")?;
 
-    // A random branch is picked from each of anyOf/oneOf; on failure the
-    // remaining combinations are tried in cyclic order.
+    // A random branch is picked from each of anyOf/oneOf and from
+    // if/then/else; on failure the remaining combinations are tried in
+    // cyclic order. The conditional is the outermost dimension so every
+    // anyOf/oneOf combination is exhausted before its other branch is tried.
+    let (cond_branches, cond_start) = conditional_branches(&base, obj, rng);
     let any_count = any_of.map_or(1, <[Value]>::len);
     let one_count = one_of.map_or(1, <[Value]>::len);
     let any_start = any_of.map_or(0, |b| rng.random_range(0..b.len()));
     let one_start = one_of.map_or(0, |b| rng.random_range(0..b.len()));
 
     let mut last_err = None;
-    for one_offset in 0..one_count {
-        for any_offset in 0..any_count {
-            let mut merged = base.clone();
-            let mut merge_result = Ok(());
-            if let Some(branches) = any_of {
-                let idx = (any_start + any_offset) % branches.len();
-                merge_result = merge_schema(&child_ctx, &mut merged, &branches[idx]);
-            }
-            if merge_result.is_ok()
-                && let Some(branches) = one_of
-            {
-                let idx = (one_start + one_offset) % branches.len();
-                merge_result = merge_schema(&child_ctx, &mut merged, &branches[idx]);
-            }
-            let result =
-                merge_result.and_then(|()| generate_value(&child_ctx, &Value::Object(merged), rng));
-            match result {
-                Ok(value) => return Ok(value),
-                Err(err) => last_err = Some(err),
+    for cond_offset in 0..cond_branches.len() {
+        let cond_idx = (cond_start + cond_offset) % cond_branches.len();
+        for one_offset in 0..one_count {
+            for any_offset in 0..any_count {
+                let mut merged = base.clone();
+                let mut merge_result = Ok(());
+                for addition in &cond_branches[cond_idx] {
+                    merge_result = merge_schema(&child_ctx, &mut merged, addition);
+                    if merge_result.is_err() {
+                        break;
+                    }
+                }
+                if merge_result.is_ok()
+                    && let Some(branches) = any_of
+                {
+                    let idx = (any_start + any_offset) % branches.len();
+                    merge_result = merge_schema(&child_ctx, &mut merged, &branches[idx]);
+                }
+                if merge_result.is_ok()
+                    && let Some(branches) = one_of
+                {
+                    let idx = (one_start + one_offset) % branches.len();
+                    merge_result = merge_schema(&child_ctx, &mut merged, &branches[idx]);
+                }
+                let result = merge_result
+                    .and_then(|()| generate_value(&child_ctx, &Value::Object(merged), rng));
+                match result {
+                    Ok(value) => return Ok(value),
+                    Err(err) => last_err = Some(err),
+                }
             }
         }
     }
     Err(last_err.expect("at least one branch combination is always attempted"))
+}
+
+/// The `if`/`then`/`else` branch alternatives for [`generate_composed`]'s
+/// combination loop: each branch is a list of schemas to merge, and the
+/// second element of the return value is the branch to try first.
+///
+/// The then branch merges `if` and `then` — forcing the condition makes
+/// `then` apply and `else` moot, so it is sound by construction. The else
+/// branch merges `else` plus a negation of `if` when [`negate_if`] derives
+/// one; only then is it eligible as the starting branch (picked by coin
+/// flip, for variety). Without a derivable negation the else branch is
+/// reached only after every then combination failed — the failure itself is
+/// the signal that `if` cannot hold together with the rest of the schema,
+/// so a base-conforming value is overwhelmingly likely to fail `if` and
+/// fall under `else`. The corpus and unit tests validate this with a real
+/// validator.
+///
+/// Without `if`, or with `if` but neither `then` nor `else`, the trio
+/// asserts nothing: a single empty branch is returned.
+fn conditional_branches(
+    base: &Map<String, Value>,
+    obj: &Map<String, Value>,
+    rng: &mut impl Rng,
+) -> (Vec<Vec<Value>>, usize) {
+    let Some(if_schema) = obj.get("if") else {
+        return (vec![Vec::new()], 0);
+    };
+    let then_schema = obj.get("then");
+    let else_schema = obj.get("else");
+    if then_schema.is_none() && else_schema.is_none() {
+        return (vec![Vec::new()], 0);
+    }
+
+    let mut branches = Vec::new();
+    if if_schema != &Value::Bool(false) {
+        let mut additions = vec![if_schema.clone()];
+        additions.extend(then_schema.cloned());
+        branches.push(additions);
+    }
+    let mut else_is_start_candidate = false;
+    if if_schema != &Value::Bool(true) {
+        let mut additions = Vec::new();
+        if if_schema == &Value::Bool(false) {
+            // Nothing fails a false schema harder; the branch always applies.
+            else_is_start_candidate = true;
+        } else if let Some(negation) = negate_if(base, if_schema) {
+            additions.push(negation);
+            else_is_start_candidate = true;
+        }
+        additions.extend(else_schema.cloned());
+        branches.push(additions);
+    }
+
+    let start = if branches.len() == 2 && else_is_start_candidate {
+        rng.random_range(0..branches.len())
+    } else {
+        0
+    };
+    (branches, start)
+}
+
+/// Derive a schema that forces `¬if`, for discriminator-shaped conditions:
+/// `if` constrains a single property to a `const`/`enum`, and the base
+/// schema declares that property with an `enum` whose complement is
+/// non-empty. The negation pins the property to the complement and requires
+/// its presence — an absent property satisfies `if` vacuously, so presence
+/// with an excluded value is what guarantees the condition fails. Any other
+/// shape returns `None`.
+fn negate_if(base: &Map<String, Value>, if_schema: &Value) -> Option<Value> {
+    let if_obj = if_schema.as_object()?;
+    if !if_obj
+        .keys()
+        .all(|k| matches!(k.as_str(), "properties" | "required"))
+    {
+        return None;
+    }
+    let props = if_obj.get("properties")?.as_object()?;
+    if props.len() != 1 {
+        return None;
+    }
+    let (name, prop_schema) = props.iter().next()?;
+    let prop_schema = prop_schema.as_object()?;
+    if !prop_schema.keys().all(|k| {
+        matches!(
+            k.as_str(),
+            "const" | "enum" | "title" | "description" | "$comment"
+        )
+    }) {
+        return None;
+    }
+    let excluded: Vec<&Value> = if let Some(value) = prop_schema.get("const") {
+        vec![value]
+    } else if let Some(Value::Array(variants)) = prop_schema.get("enum") {
+        variants.iter().collect()
+    } else {
+        return None;
+    };
+
+    let base_variants = base
+        .get("properties")?
+        .as_object()?
+        .get(name)?
+        .as_object()?
+        .get("enum")?
+        .as_array()?;
+    let complement: Vec<Value> = base_variants
+        .iter()
+        .filter(|v| !excluded.contains(v))
+        .cloned()
+        .collect();
+    if complement.is_empty() {
+        return None;
+    }
+
+    let mut prop = Map::new();
+    prop.insert("enum".into(), Value::Array(complement));
+    let mut properties = Map::new();
+    properties.insert(name.clone(), Value::Object(prop));
+    let mut negation = Map::new();
+    negation.insert("properties".into(), Value::Object(properties));
+    negation.insert(
+        "required".into(),
+        Value::Array(vec![Value::String(name.clone())]),
+    );
+    Some(Value::Object(negation))
 }
 
 fn branch_list<'a>(
@@ -1171,7 +1312,29 @@ fn merge_schema(
         }
     };
 
+    // `if`/`then`/`else` are only meaningful as a group, so the trio moves
+    // whole: onto the target's top level when those slots are free (the next
+    // generate_value pass resolves it there), otherwise deferred into allOf
+    // like a second anyOf/oneOf would be. A bare `then`/`else` without `if`
+    // asserts nothing and is dropped.
+    if add_obj.contains_key("if") {
+        let trio: Map<String, Value> = CONDITIONAL_KEYWORDS
+            .iter()
+            .filter_map(|k| add_obj.get(*k).map(|v| ((*k).to_string(), v.clone())))
+            .collect();
+        if CONDITIONAL_KEYWORDS.iter().any(|k| target.contains_key(*k)) {
+            push_all_of_member(target, Value::Object(trio));
+        } else {
+            for (key, value) in trio {
+                target.insert(key, value);
+            }
+        }
+    }
+
     for (key, value) in add_obj {
+        if CONDITIONAL_KEYWORDS.contains(&key.as_str()) {
+            continue;
+        }
         merge_keyword(ctx, target, key, value)?;
     }
     Ok(())
@@ -1231,16 +1394,30 @@ fn merge_keyword(
         "properties" => merge_sub_schema_map(target, key, value),
         "required" => merge_required(target, value),
         "enum" => merge_enum(target, value),
-        "const" => match target.get("const") {
-            None => {
-                target.insert(key.into(), value.clone());
-                Ok(())
+        "const" => {
+            // A const outside a sibling enum would win the generation
+            // dispatch and silently violate the enum.
+            if let Some(Value::Array(variants)) = target.get("enum")
+                && !variants.contains(value)
+            {
+                return Err(Error::ConflictingConstraints {
+                    message: format!(
+                        "const {value} is not in enum {}",
+                        Value::Array(variants.clone())
+                    ),
+                });
             }
-            Some(existing) if existing == value => Ok(()),
-            Some(existing) => Err(Error::ConflictingConstraints {
-                message: format!("conflicting const values: {existing} vs {value}"),
-            }),
-        },
+            match target.get("const") {
+                None => {
+                    target.insert(key.into(), value.clone());
+                    Ok(())
+                }
+                Some(existing) if existing == value => Ok(()),
+                Some(existing) => Err(Error::ConflictingConstraints {
+                    message: format!("conflicting const values: {existing} vs {value}"),
+                }),
+            }
+        }
         "items" => merge_wrapping_all_of(target, key, value),
         "minimum" | "exclusiveMinimum" | "minLength" | "minItems" | "minProperties"
         | "minContains" => merge_bound(target, key, value, BoundKind::Lower),
@@ -1440,26 +1617,41 @@ fn merge_enum(target: &mut Map<String, Value>, value: &Value) -> Result<(), Erro
         });
     };
 
-    let Some(existing) = target.get("enum").cloned() else {
-        target.insert("enum".into(), value.clone());
-        return Ok(());
-    };
-    let Value::Array(existing) = existing else {
-        return Err(Error::InvalidSchema {
-            message: format!("enum must be an array, got {existing}"),
-        });
+    let merged = match target.get("enum").cloned() {
+        None => additions.clone(),
+        Some(Value::Array(existing)) => {
+            let intersection: Vec<Value> = existing
+                .into_iter()
+                .filter(|variant| additions.contains(variant))
+                .collect();
+            if intersection.is_empty() {
+                return Err(Error::ConflictingConstraints {
+                    message: "enum intersection is empty".into(),
+                });
+            }
+            intersection
+        }
+        Some(existing) => {
+            return Err(Error::InvalidSchema {
+                message: format!("enum must be an array, got {existing}"),
+            });
+        }
     };
 
-    let intersection: Vec<Value> = existing
-        .into_iter()
-        .filter(|variant| additions.contains(variant))
-        .collect();
-    if intersection.is_empty() {
+    // A sibling const outside the enum would win the generation dispatch
+    // and silently violate it.
+    if let Some(const_value) = target.get("const")
+        && !merged.contains(const_value)
+    {
         return Err(Error::ConflictingConstraints {
-            message: "enum intersection is empty".into(),
+            message: format!(
+                "const {const_value} is not in enum {}",
+                Value::Array(merged)
+            ),
         });
     }
-    target.insert("enum".into(), Value::Array(intersection));
+
+    target.insert("enum".into(), Value::Array(merged));
     Ok(())
 }
 
