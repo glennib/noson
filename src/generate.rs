@@ -61,6 +61,13 @@ fn generate_value(ctx: &Context, schema: &Value, rng: &mut impl Rng) -> Result<V
         return Ok(generate_random_simple(rng));
     }
 
+    // Composition keywords ($ref, allOf, anyOf, oneOf) are conjunctive with
+    // their sibling keywords, so they are resolved by merging before any
+    // other keyword is considered.
+    if COMPOSITION_KEYWORDS.iter().any(|k| obj.contains_key(*k)) {
+        return generate_composed(ctx, obj, rng);
+    }
+
     // const
     if let Some(val) = obj.get("const") {
         return Ok(val.clone());
@@ -75,38 +82,6 @@ fn generate_value(ctx: &Context, schema: &Value, rng: &mut impl Rng) -> Result<V
         }
         let idx = rng.random_range(0..variants.len());
         return Ok(variants[idx].clone());
-    }
-
-    // $ref
-    if let Some(Value::String(reference)) = obj.get("$ref") {
-        return generate_ref(ctx, reference, rng);
-    }
-
-    // allOf
-    if let Some(Value::Array(sub_schemas)) = obj.get("allOf") {
-        return generate_all_of(ctx, sub_schemas, rng);
-    }
-
-    // anyOf
-    if let Some(Value::Array(sub_schemas)) = obj.get("anyOf") {
-        if sub_schemas.is_empty() {
-            return Err(Error::InvalidSchema {
-                message: "anyOf must have at least one sub-schema".into(),
-            });
-        }
-        let idx = rng.random_range(0..sub_schemas.len());
-        return generate_value(ctx, &sub_schemas[idx], rng);
-    }
-
-    // oneOf
-    if let Some(Value::Array(sub_schemas)) = obj.get("oneOf") {
-        if sub_schemas.is_empty() {
-            return Err(Error::InvalidSchema {
-                message: "oneOf must have at least one sub-schema".into(),
-            });
-        }
-        let idx = rng.random_range(0..sub_schemas.len());
-        return generate_value(ctx, &sub_schemas[idx], rng);
     }
 
     // Dispatch on "type"
@@ -461,7 +436,21 @@ fn generate_array(
     Ok(Value::Array(items))
 }
 
-fn generate_ref(ctx: &Context, reference: &str, rng: &mut impl Rng) -> Result<Value, Error> {
+const COMPOSITION_KEYWORDS: [&str; 4] = ["$ref", "allOf", "anyOf", "oneOf"];
+
+/// Generate from a schema whose top level contains composition keywords.
+///
+/// Keywords at one schema level are conjunctive, so the sibling keywords,
+/// the resolved `$ref` target, all `allOf` members, and one picked branch
+/// each from `anyOf` and `oneOf` are merged into a single schema, which is
+/// then generated from. When a picked branch cannot be merged or its merged
+/// schema fails to generate, the remaining branch combinations are tried
+/// before giving up with the last error.
+fn generate_composed(
+    ctx: &Context,
+    obj: &Map<String, Value>,
+    rng: &mut impl Rng,
+) -> Result<Value, Error> {
     if ctx.depth >= ctx.max_depth {
         return Err(Error::MaxDepthExceeded);
     }
@@ -472,8 +461,432 @@ fn generate_ref(ctx: &Context, reference: &str, rng: &mut impl Rng) -> Result<Va
         max_depth: ctx.max_depth,
     };
 
-    let resolved = resolve_ref(ctx.root, reference)?;
-    generate_value(&child_ctx, resolved, rng)
+    // Sibling keywords form the base schema.
+    let mut base = Map::new();
+    for (key, value) in obj {
+        if !COMPOSITION_KEYWORDS.contains(&key.as_str()) {
+            base.insert(key.clone(), value.clone());
+        }
+    }
+
+    if let Some(reference) = obj.get("$ref") {
+        let Value::String(reference) = reference else {
+            return Err(Error::InvalidSchema {
+                message: format!("$ref must be a string, got {reference}"),
+            });
+        };
+        let resolved = resolve_ref(ctx.root, reference)?;
+        merge_schema(&child_ctx, &mut base, resolved)?;
+    }
+
+    if let Some(members) = obj.get("allOf") {
+        let Value::Array(members) = members else {
+            return Err(Error::InvalidSchema {
+                message: format!("allOf must be an array, got {members}"),
+            });
+        };
+        for member in members {
+            merge_schema(&child_ctx, &mut base, member)?;
+        }
+    }
+
+    let any_of = branch_list(obj, "anyOf")?;
+    let one_of = branch_list(obj, "oneOf")?;
+
+    // A random branch is picked from each of anyOf/oneOf; on failure the
+    // remaining combinations are tried in cyclic order.
+    let any_count = any_of.map_or(1, <[Value]>::len);
+    let one_count = one_of.map_or(1, <[Value]>::len);
+    let any_start = any_of.map_or(0, |b| rng.random_range(0..b.len()));
+    let one_start = one_of.map_or(0, |b| rng.random_range(0..b.len()));
+
+    let mut last_err = None;
+    for one_offset in 0..one_count {
+        for any_offset in 0..any_count {
+            let mut merged = base.clone();
+            let mut merge_result = Ok(());
+            if let Some(branches) = any_of {
+                let idx = (any_start + any_offset) % branches.len();
+                merge_result = merge_schema(&child_ctx, &mut merged, &branches[idx]);
+            }
+            if merge_result.is_ok()
+                && let Some(branches) = one_of
+            {
+                let idx = (one_start + one_offset) % branches.len();
+                merge_result = merge_schema(&child_ctx, &mut merged, &branches[idx]);
+            }
+            let result =
+                merge_result.and_then(|()| generate_value(&child_ctx, &Value::Object(merged), rng));
+            match result {
+                Ok(value) => return Ok(value),
+                Err(err) => last_err = Some(err),
+            }
+        }
+    }
+    Err(last_err.expect("at least one branch combination is always attempted"))
+}
+
+fn branch_list<'a>(
+    obj: &'a Map<String, Value>,
+    keyword: &str,
+) -> Result<Option<&'a [Value]>, Error> {
+    match obj.get(keyword) {
+        None => Ok(None),
+        Some(Value::Array(branches)) if branches.is_empty() => Err(Error::InvalidSchema {
+            message: format!("{keyword} must have at least one sub-schema"),
+        }),
+        Some(Value::Array(branches)) => Ok(Some(branches)),
+        Some(other) => Err(Error::InvalidSchema {
+            message: format!("{keyword} must be an array, got {other}"),
+        }),
+    }
+}
+
+/// Merge `addition` (a `$ref` target, `allOf` member, or picked
+/// `anyOf`/`oneOf` branch) into `target`, keyword by keyword, following
+/// conjunctive semantics. Errors when keywords cannot be combined.
+fn merge_schema(
+    ctx: &Context,
+    target: &mut Map<String, Value>,
+    addition: &Value,
+) -> Result<(), Error> {
+    let add_obj = match addition {
+        Value::Bool(true) => return Ok(()),
+        Value::Bool(false) => {
+            return Err(Error::InvalidSchema {
+                message: "false schema rejects all values".into(),
+            });
+        }
+        Value::Object(o) => o,
+        other => {
+            return Err(Error::InvalidSchema {
+                message: format!("schema must be a boolean or object, got {other}"),
+            });
+        }
+    };
+
+    for (key, value) in add_obj {
+        merge_keyword(ctx, target, key, value)?;
+    }
+    Ok(())
+}
+
+fn merge_keyword(
+    ctx: &Context,
+    target: &mut Map<String, Value>,
+    key: &str,
+    value: &Value,
+) -> Result<(), Error> {
+    match key {
+        // Nested composition: $ref resolves immediately (depth-guarded, so
+        // cyclic references terminate); allOf members merge recursively.
+        "$ref" => {
+            if ctx.depth >= ctx.max_depth {
+                return Err(Error::MaxDepthExceeded);
+            }
+            let child_ctx = Context {
+                root: ctx.root,
+                depth: ctx.depth + 1,
+                max_depth: ctx.max_depth,
+            };
+            let Value::String(reference) = value else {
+                return Err(Error::InvalidSchema {
+                    message: format!("$ref must be a string, got {value}"),
+                });
+            };
+            let resolved = resolve_ref(ctx.root, reference)?;
+            merge_schema(&child_ctx, target, resolved)
+        }
+        "allOf" => {
+            let Value::Array(members) = value else {
+                return Err(Error::InvalidSchema {
+                    message: format!("allOf must be an array, got {value}"),
+                });
+            };
+            for member in members {
+                merge_schema(ctx, target, member)?;
+            }
+            Ok(())
+        }
+        // anyOf/oneOf need a branch pick, so they stay unresolved: kept
+        // top-level if that slot is free, otherwise deferred into allOf.
+        // Either way the next generate_value pass picks them up.
+        "anyOf" | "oneOf" => {
+            if target.contains_key(key) {
+                let mut wrapper = Map::new();
+                wrapper.insert(key.into(), value.clone());
+                push_all_of_member(target, Value::Object(wrapper));
+            } else {
+                target.insert(key.into(), value.clone());
+            }
+            Ok(())
+        }
+        "type" => merge_type(target, value),
+        "properties" => merge_sub_schema_map(target, key, value),
+        "required" => merge_required(target, value),
+        "enum" => merge_enum(target, value),
+        "const" => match target.get("const") {
+            None => {
+                target.insert(key.into(), value.clone());
+                Ok(())
+            }
+            Some(existing) if existing == value => Ok(()),
+            Some(existing) => Err(Error::ConflictingConstraints {
+                message: format!("conflicting const values: {existing} vs {value}"),
+            }),
+        },
+        "items" => merge_wrapping_all_of(target, key, value),
+        "minimum" | "exclusiveMinimum" | "minLength" | "minItems" | "minProperties"
+        | "minContains" => merge_bound(target, key, value, BoundKind::Lower),
+        "maximum" | "exclusiveMaximum" | "maxLength" | "maxItems" | "maxProperties"
+        | "maxContains" => merge_bound(target, key, value, BoundKind::Upper),
+        // Annotations don't affect generation; the first one seen wins.
+        "title" | "description" | "default" | "examples" | "$comment" | "$schema" | "$id"
+        | "$defs" | "definitions" | "deprecated" | "readOnly" | "writeOnly" => {
+            if !target.contains_key(key) {
+                target.insert(key.into(), value.clone());
+            }
+            Ok(())
+        }
+        // Any other keyword merges only when the values agree; differing
+        // values would need keyword-specific semantics, so fail honestly
+        // rather than generate silently invalid output.
+        _ => match target.get(key) {
+            None => {
+                target.insert(key.into(), value.clone());
+                Ok(())
+            }
+            Some(existing) if existing == value => Ok(()),
+            Some(existing) => Err(Error::ConflictingConstraints {
+                message: format!(
+                    "cannot merge differing values for `{key}`: {existing} vs {value}"
+                ),
+            }),
+        },
+    }
+}
+
+fn push_all_of_member(target: &mut Map<String, Value>, member: Value) {
+    // `allOf` in additions is merged away immediately, so an `allOf` key on
+    // `target` can only have been created here and is always an array.
+    match target.get_mut("allOf") {
+        Some(Value::Array(members)) => members.push(member),
+        _ => {
+            target.insert("allOf".into(), Value::Array(vec![member]));
+        }
+    }
+}
+
+fn merge_type(target: &mut Map<String, Value>, value: &Value) -> Result<(), Error> {
+    fn type_set(value: &Value) -> Result<Vec<&str>, Error> {
+        match value {
+            Value::String(s) => Ok(vec![s.as_str()]),
+            Value::Array(entries) => entries
+                .iter()
+                .map(|e| {
+                    e.as_str().ok_or_else(|| Error::InvalidSchema {
+                        message: format!("type array entries must be strings, got {e}"),
+                    })
+                })
+                .collect(),
+            other => Err(Error::InvalidSchema {
+                message: format!("type must be a string or array of strings, got {other}"),
+            }),
+        }
+    }
+
+    let Some(existing) = target.get("type").cloned() else {
+        target.insert("type".into(), value.clone());
+        return Ok(());
+    };
+
+    let a = type_set(&existing)?;
+    let b = type_set(value)?;
+    let mut intersection: Vec<&str> = Vec::new();
+    for t in &a {
+        let common = if b.contains(t) {
+            Some(*t)
+        } else if (*t == "integer" && b.contains(&"number"))
+            || (*t == "number" && b.contains(&"integer"))
+        {
+            // integer is a subtype of number
+            Some("integer")
+        } else {
+            None
+        };
+        if let Some(common) = common
+            && !intersection.contains(&common)
+        {
+            intersection.push(common);
+        }
+    }
+
+    match intersection.as_slice() {
+        [] => Err(Error::ConflictingConstraints {
+            message: format!("no common type between {existing} and {value}"),
+        }),
+        [single] => {
+            target.insert("type".into(), Value::String((*single).into()));
+            Ok(())
+        }
+        several => {
+            let entries = several.iter().map(|t| Value::String((*t).into())).collect();
+            target.insert("type".into(), Value::Array(entries));
+            Ok(())
+        }
+    }
+}
+
+/// Merge a map of named sub-schemas (`properties`): entries new to `target`
+/// are inserted; entries present on both sides combine as
+/// `{"allOf": [existing, addition]}`, which a later pass merges.
+fn merge_sub_schema_map(
+    target: &mut Map<String, Value>,
+    key: &str,
+    value: &Value,
+) -> Result<(), Error> {
+    let Value::Object(additions) = value else {
+        return Err(Error::InvalidSchema {
+            message: format!("{key} must be an object, got {value}"),
+        });
+    };
+
+    match target.get_mut(key) {
+        None => {
+            target.insert(key.into(), value.clone());
+            Ok(())
+        }
+        Some(Value::Object(existing)) => {
+            for (name, addition) in additions {
+                match existing.get(name) {
+                    None => {
+                        existing.insert(name.clone(), addition.clone());
+                    }
+                    Some(current) if current == addition => {}
+                    Some(current) => {
+                        let combined = Value::Array(vec![current.clone(), addition.clone()]);
+                        let mut wrapper = Map::new();
+                        wrapper.insert("allOf".into(), combined);
+                        existing.insert(name.clone(), Value::Object(wrapper));
+                    }
+                }
+            }
+            Ok(())
+        }
+        Some(other) => Err(Error::InvalidSchema {
+            message: format!("{key} must be an object, got {other}"),
+        }),
+    }
+}
+
+/// Merge a single sub-schema keyword (`items`) by wrapping both sides in
+/// `{"allOf": [existing, addition]}` when they differ.
+fn merge_wrapping_all_of(
+    target: &mut Map<String, Value>,
+    key: &str,
+    value: &Value,
+) -> Result<(), Error> {
+    match target.get(key) {
+        None => {
+            target.insert(key.into(), value.clone());
+        }
+        Some(existing) if existing == value => {}
+        Some(existing) => {
+            let combined = Value::Array(vec![existing.clone(), value.clone()]);
+            let mut wrapper = Map::new();
+            wrapper.insert("allOf".into(), combined);
+            target.insert(key.into(), Value::Object(wrapper));
+        }
+    }
+    Ok(())
+}
+
+fn merge_required(target: &mut Map<String, Value>, value: &Value) -> Result<(), Error> {
+    let Value::Array(additions) = value else {
+        return Err(Error::InvalidSchema {
+            message: format!("required must be an array, got {value}"),
+        });
+    };
+
+    match target.get_mut("required") {
+        None => {
+            target.insert("required".into(), value.clone());
+            Ok(())
+        }
+        Some(Value::Array(existing)) => {
+            for addition in additions {
+                if !existing.contains(addition) {
+                    existing.push(addition.clone());
+                }
+            }
+            Ok(())
+        }
+        Some(other) => Err(Error::InvalidSchema {
+            message: format!("required must be an array, got {other}"),
+        }),
+    }
+}
+
+fn merge_enum(target: &mut Map<String, Value>, value: &Value) -> Result<(), Error> {
+    let Value::Array(additions) = value else {
+        return Err(Error::InvalidSchema {
+            message: format!("enum must be an array, got {value}"),
+        });
+    };
+
+    let Some(existing) = target.get("enum").cloned() else {
+        target.insert("enum".into(), value.clone());
+        return Ok(());
+    };
+    let Value::Array(existing) = existing else {
+        return Err(Error::InvalidSchema {
+            message: format!("enum must be an array, got {existing}"),
+        });
+    };
+
+    let intersection: Vec<Value> = existing
+        .into_iter()
+        .filter(|variant| additions.contains(variant))
+        .collect();
+    if intersection.is_empty() {
+        return Err(Error::ConflictingConstraints {
+            message: "enum intersection is empty".into(),
+        });
+    }
+    target.insert("enum".into(), Value::Array(intersection));
+    Ok(())
+}
+
+enum BoundKind {
+    Lower,
+    Upper,
+}
+
+/// Conjunction of two bounds keeps the stricter one: the larger lower bound
+/// or the smaller upper bound.
+fn merge_bound(
+    target: &mut Map<String, Value>,
+    key: &str,
+    value: &Value,
+    kind: BoundKind,
+) -> Result<(), Error> {
+    let Some(addition) = value.as_f64() else {
+        return Err(Error::InvalidSchema {
+            message: format!("{key} must be a number, got {value}"),
+        });
+    };
+
+    let existing_is_stricter = match target.get(key).and_then(serde_json::Value::as_f64) {
+        Some(existing) => match kind {
+            BoundKind::Lower => existing >= addition,
+            BoundKind::Upper => existing <= addition,
+        },
+        None => false,
+    };
+    if !existing_is_stricter {
+        target.insert(key.into(), value.clone());
+    }
+    Ok(())
 }
 
 fn resolve_ref<'a>(root: &'a Value, reference: &str) -> Result<&'a Value, Error> {
@@ -505,79 +918,4 @@ fn resolve_ref<'a>(root: &'a Value, reference: &str) -> Result<&'a Value, Error>
 
     // If we never moved (e.g. "#" or empty ref), return root
     Ok(current)
-}
-
-fn generate_all_of(
-    ctx: &Context,
-    sub_schemas: &[Value],
-    rng: &mut impl Rng,
-) -> Result<Value, Error> {
-    if sub_schemas.is_empty() {
-        return Ok(generate_random_simple(rng));
-    }
-
-    // Merge all sub-schemas into a single object schema
-    let mut merged_properties = Map::new();
-    let mut merged_required: Vec<String> = Vec::new();
-    let mut merged_type: Option<String> = None;
-
-    for sub in sub_schemas {
-        let sub_obj = match sub.as_object() {
-            Some(o) => o,
-            None => {
-                // Boolean true is a no-op; false rejects
-                if sub.as_bool() == Some(false) {
-                    return Err(Error::AllOfFailed {
-                        message: "allOf contains false schema".into(),
-                    });
-                }
-                continue;
-            }
-        };
-
-        if let Some(Value::Object(props)) = sub_obj.get("properties") {
-            for (k, v) in props {
-                merged_properties.insert(k.clone(), v.clone());
-            }
-        }
-
-        if let Some(Value::Array(req)) = sub_obj.get("required") {
-            for r in req.iter().filter_map(|v| v.as_str()) {
-                if !merged_required.iter().any(|existing| existing == r) {
-                    merged_required.push(r.to_string());
-                }
-            }
-        }
-
-        if let Some(Value::String(t)) = sub_obj.get("type") {
-            if let Some(ref existing) = merged_type {
-                if existing != t {
-                    return Err(Error::AllOfFailed {
-                        message: format!("conflicting types in allOf: {existing} vs {t}"),
-                    });
-                }
-            } else {
-                merged_type = Some(t.clone());
-            }
-        }
-    }
-
-    // Build merged schema
-    let mut merged = Map::new();
-    if let Some(t) = merged_type {
-        merged.insert("type".into(), Value::String(t));
-    } else if !merged_properties.is_empty() {
-        merged.insert("type".into(), Value::String("object".into()));
-    }
-    if !merged_properties.is_empty() {
-        merged.insert("properties".into(), Value::Object(merged_properties));
-    }
-    if !merged_required.is_empty() {
-        merged.insert(
-            "required".into(),
-            Value::Array(merged_required.into_iter().map(Value::String).collect()),
-        );
-    }
-
-    generate_value(ctx, &Value::Object(merged), rng)
 }

@@ -31,8 +31,8 @@
 //!
 //! - **Types**: `null`, `boolean`, `string`, `integer`, `number`, `object`,
 //!   `array`
-//! - **Type unions**: `"type": ["string", "null"]` (array form of `type`) —
-//!   one type is picked uniformly, and sibling constraints apply to it
+//! - **Type unions**: `"type": ["string", "null"]` (array form of `type`) — one
+//!   type is picked uniformly, and sibling constraints apply to it
 //! - **Constraints**: `minimum`/`maximum`,
 //!   `exclusiveMinimum`/`exclusiveMaximum`, `minLength`/`maxLength`,
 //!   `minItems`/`maxItems`
@@ -43,8 +43,11 @@
 //!   string generation, so the result may not satisfy the pattern.
 //! - **Format**: `date-time`, `date`, `time`, `duration`
 //! - **Enum / Const**: `enum`, `const`
-//! - **Composition**: `allOf`, `anyOf`, `oneOf`
-//! - **References**: `$ref` resolved against `$defs` / `definitions`
+//! - **Composition**: `allOf`, `anyOf`, `oneOf` — combined conjunctively with
+//!   sibling keywords: a random `anyOf`/`oneOf` branch is merged with the rest
+//!   of the schema, retrying other branches on conflict
+//! - **References**: `$ref` resolved against `$defs` / `definitions`; sibling
+//!   keywords are merged conjunctively (2020-12 semantics)
 //! - **Boolean schemas**: `true` (any value) and `false` (error)
 //!
 //! # Not Supported
@@ -480,6 +483,174 @@ mod tests {
         // result
     }
 
+    #[test]
+    fn test_all_of_merges_constraints() {
+        let schema = json!({"allOf": [{"type": "integer", "minimum": 5}, {"maximum": 7}]});
+        let mut rng = seeded_rng();
+        for _ in 0..50 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let n = result.as_i64().unwrap();
+            assert!((5..=7).contains(&n), "integer {n} out of range [5, 7]");
+        }
+        generate_and_validate_n(&schema, 50);
+    }
+
+    #[test]
+    fn test_all_of_with_sibling_keywords() {
+        let schema = json!({
+            "type": "object",
+            "properties": {"a": {"type": "string"}},
+            "required": ["a"],
+            "allOf": [{
+                "properties": {"b": {"type": "integer"}},
+                "required": ["b"]
+            }]
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..20 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let obj = result.as_object().unwrap();
+            assert!(obj.contains_key("a"), "sibling required ignored");
+            assert!(obj.contains_key("b"), "allOf member required ignored");
+        }
+        generate_and_validate_n(&schema, 20);
+    }
+
+    #[test]
+    fn test_all_of_with_type_array_member() {
+        let schema = json!({
+            "minimum": 1,
+            "maximum": 3,
+            "allOf": [{"type": ["integer", "null"]}, {"type": "integer"}]
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..50 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let n = result.as_i64().unwrap();
+            assert!((1..=3).contains(&n), "integer {n} out of range [1, 3]");
+        }
+        generate_and_validate_n(&schema, 50);
+    }
+
+    #[test]
+    fn test_all_of_conflicting_types_returns_error() {
+        let schema = json!({"allOf": [{"type": "string"}, {"type": "integer"}]});
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_all_of_conflicting_const_returns_error() {
+        let schema = json!({"const": 1, "allOf": [{"const": 2}]});
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_all_of_enum_intersection() {
+        let schema = json!({"enum": [1, 2, 3], "allOf": [{"enum": [2, 3, 4]}]});
+        let mut rng = seeded_rng();
+        for _ in 0..50 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let n = result.as_i64().unwrap();
+            assert!([2, 3].contains(&n), "enum intersection violated: {n}");
+        }
+        generate_and_validate_n(&schema, 50);
+    }
+
+    #[test]
+    fn test_any_of_with_sibling_keywords() {
+        let schema = json!({
+            "type": "integer",
+            "minimum": 10,
+            "anyOf": [{"maximum": 12}, {"minimum": 11, "maximum": 15}]
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..100 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let n = result.as_i64().unwrap();
+            assert!((10..=15).contains(&n), "integer {n} out of range [10, 15]");
+        }
+        generate_and_validate_n(&schema, 100);
+    }
+
+    #[test]
+    fn test_one_of_with_sibling_keywords() {
+        // Discriminated union drafted as sibling keywords (corpus file
+        // 40-push_message): the outer type/properties/required apply
+        // conjunctively with the picked oneOf branch.
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "channel": {"type": "string", "enum": ["push", "sms"]},
+                "text": {"type": "string"}
+            },
+            "required": ["channel", "text"],
+            "oneOf": [
+                {"properties": {"channel": {"const": "sms"}, "text": {"maxLength": 160}}},
+                {"properties": {"channel": {"const": "push"}, "text": {"maxLength": 512}}}
+            ]
+        });
+        let mut rng = seeded_rng();
+        let mut saw_sms = false;
+        let mut saw_push = false;
+        for _ in 0..200 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let obj = result.as_object().unwrap();
+            assert!(obj.contains_key("text"), "sibling required ignored");
+            match obj.get("channel").and_then(Value::as_str) {
+                Some("sms") => saw_sms = true,
+                Some("push") => saw_push = true,
+                other => panic!("unexpected channel: {other:?}"),
+            }
+        }
+        assert!(saw_sms, "oneOf never picked the sms branch");
+        assert!(saw_push, "oneOf never picked the push branch");
+        // is_valid also asserts the exactly-one semantics of oneOf.
+        generate_and_validate_n(&schema, 200);
+    }
+
+    #[test]
+    fn test_one_of_conflicting_branch_is_retried() {
+        // The integer branch conflicts with the sibling type; generation
+        // must fall back to the other branch instead of erroring.
+        let schema = json!({
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 2,
+            "oneOf": [{"type": "integer"}, {}]
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..50 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let s = result.as_str().unwrap();
+            assert_eq!(s.len(), 2, "string length should be 2: {s}");
+        }
+        generate_and_validate_n(&schema, 50);
+    }
+
+    #[test]
+    fn test_nested_one_of() {
+        let schema = json!({"oneOf": [{"oneOf": [{"const": "a"}, {"const": "b"}]}]});
+        let mut rng = seeded_rng();
+        let mut seen = std::collections::HashSet::new();
+        for _ in 0..100 {
+            let result = generate(&schema, &mut rng).unwrap();
+            seen.insert(result.as_str().unwrap().to_string());
+        }
+        assert!(seen.contains("a"), "nested oneOf never generated \"a\"");
+        assert!(seen.contains("b"), "nested oneOf never generated \"b\"");
+        generate_and_validate_n(&schema, 100);
+    }
+
     // ── $ref ──
 
     #[test]
@@ -580,6 +751,30 @@ mod tests {
             ["red", "green", "blue"].contains(&color),
             "unexpected color: {color}"
         );
+        generate_and_validate_n(&schema, 20);
+    }
+
+    #[test]
+    fn test_ref_with_sibling_keywords() {
+        let schema = json!({
+            "$defs": {
+                "Base": {
+                    "type": "object",
+                    "properties": {"id": {"type": "integer"}},
+                    "required": ["id"]
+                }
+            },
+            "$ref": "#/$defs/Base",
+            "properties": {"name": {"type": "string"}},
+            "required": ["name"]
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..20 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let obj = result.as_object().unwrap();
+            assert!(obj.contains_key("id"), "$ref target required ignored");
+            assert!(obj.contains_key("name"), "sibling required ignored");
+        }
         generate_and_validate_n(&schema, 20);
     }
 

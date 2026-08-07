@@ -21,13 +21,9 @@ pub enum Error {
     #[error("$ref not found: {reference}")]
     RefNotFound { reference: String },
 
-    /// An `allOf` composition could not be merged (e.g. conflicting `type`
-    /// values or a `false` sub-schema).
-    #[error("allOf failed: {message}")]
-    AllOfFailed { message: String },
-
-    /// Numeric or length constraints are impossible to satisfy
-    /// (e.g. `minLength` > `maxLength`).
+    /// Constraints are impossible to satisfy, either within one schema
+    /// (e.g. `minLength` > `maxLength`) or when merging composition
+    /// keywords (e.g. conflicting `type` values across `allOf` members).
     #[error("conflicting constraints: {message}")]
     ConflictingConstraints { message: String },
 }

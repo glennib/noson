@@ -55,8 +55,11 @@ Required properties are always included; optional properties are included with
   string generation, so the result may not satisfy the pattern.
 - **Format**: `date-time`, `date`, `time`, `duration`
 - **Enum / Const**: `enum`, `const`
-- **Composition**: `allOf`, `anyOf`, `oneOf`
-- **References**: `$ref` resolved against `$defs` / `definitions`
+- **Composition**: `allOf`, `anyOf`, `oneOf` -- combined conjunctively with
+  sibling keywords: a random `anyOf`/`oneOf` branch is merged with the rest
+  of the schema, retrying other branches on conflict
+- **References**: `$ref` resolved against `$defs` / `definitions`; sibling
+  keywords are merged conjunctively (2020-12 semantics)
 - **Boolean schemas**: `true` (any value) and `false` (error)
 
 ## Not Supported

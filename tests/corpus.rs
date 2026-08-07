@@ -50,7 +50,6 @@ const EXPECTED_FAILURES: &[&str] = &[
     "32-topic_tags",       // uniqueItems
     "34-teaser_media",     // format: uri (inside oneOf branches)
     "35-geo_point",        // prefixItems
-    "40-push_message",     // oneOf combined with sibling keywords
 ];
 
 struct FailureExample {
