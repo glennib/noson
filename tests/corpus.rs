@@ -35,9 +35,7 @@ const MAX_EXAMPLES: usize = 3;
 /// When a file goes green, `expected_failures_still_fail` names it and the
 /// fix is to delete its line here.
 const EXPECTED_FAILURES: &[&str] = &[
-    "09-geo_point",      // prefixItems
     "10-publish_window", // dependentRequired
-    "35-geo_point",      // prefixItems
 ];
 
 struct FailureExample {

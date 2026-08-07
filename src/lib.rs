@@ -38,6 +38,10 @@
 //!   `minItems`/`maxItems`
 //! - **Multiples**: `multipleOf` — a random multiple within the bounds,
 //!   erroring when the range contains none
+//! - **Tuples**: `prefixItems` — the first slots are generated positionally
+//!   from the prefix schemas, later slots from `items`; `items: false` caps
+//!   the length at the tuple size. The generated count covers the full tuple
+//!   whenever `minItems`/`maxItems` allow
 //! - **Array uniqueness**: `uniqueItems` — collisions are retried a bounded
 //!   number of times per slot; when the item space is exhausted the array is
 //!   returned short (never below `minItems`), and an error is returned when
@@ -76,8 +80,8 @@
 //! - **Object**: `unevaluatedProperties`; `patternProperties` and
 //!   `propertyNames` are only consulted when synthesizing extra entries —
 //!   they are not enforced on declared `properties`
-//! - **Array**: `prefixItems`, `additionalItems`, `contains`, `minContains`,
-//!   `maxContains`, `unevaluatedItems`
+//! - **Array**: `additionalItems`, `contains`, `minContains`, `maxContains`,
+//!   `unevaluatedItems`
 //! - **Composition**: `not`, `if`/`then`/`else`
 //! - **Dependencies**: `dependentRequired`, `dependentSchemas`
 //! - **References**: external `$ref` (http/file URIs), `$dynamicRef`, `$anchor`
@@ -753,6 +757,97 @@ mod tests {
         let mut rng = seeded_rng();
         let result = generate(&schema, &mut rng).expect("generation should succeed");
         assert_eq!(result, json!([7, 7]));
+    }
+
+    #[test]
+    fn test_array_prefix_items_tuple() {
+        let schema = json!({
+            "type": "array",
+            "prefixItems": [
+                {"type": "number", "minimum": -90, "maximum": 90},
+                {"type": "number", "minimum": -180, "maximum": 180}
+            ],
+            "minItems": 2,
+            "maxItems": 2
+        });
+        generate_and_validate_n(&schema, 100);
+    }
+
+    #[test]
+    fn test_array_prefix_items_with_items_for_rest() {
+        let schema = json!({
+            "type": "array",
+            "prefixItems": [{"type": "string"}, {"type": "boolean"}],
+            "items": {"type": "integer", "minimum": 0},
+            "minItems": 3,
+            "maxItems": 6
+        });
+        generate_and_validate_n(&schema, 100);
+    }
+
+    #[test]
+    fn test_array_prefix_items_without_bounds_covers_tuple() {
+        let schema = json!({
+            "type": "array",
+            "prefixItems": [{"const": "lat"}, {"const": "lon"}]
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..50 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            let items = result.as_array().expect("array");
+            assert!(items.len() >= 2, "expected the full tuple, got: {result}");
+            assert_eq!(items[0], json!("lat"));
+            assert_eq!(items[1], json!("lon"));
+            assert!(jsonschema::is_valid(&schema, &result));
+        }
+    }
+
+    #[test]
+    fn test_array_prefix_items_items_false_caps_length() {
+        let schema = json!({
+            "type": "array",
+            "prefixItems": [{"type": "integer"}, {"type": "string"}],
+            "items": false,
+            "minItems": 1
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..50 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                result.as_array().expect("array").len() <= 2,
+                "items: false must cap the length at the tuple size, got: {result}"
+            );
+            assert!(jsonschema::is_valid(&schema, &result));
+        }
+    }
+
+    #[test]
+    fn test_array_prefix_items_items_false_min_items_unreachable_returns_error() {
+        let schema = json!({
+            "type": "array",
+            "prefixItems": [{"type": "integer"}, {"type": "string"}],
+            "items": false,
+            "minItems": 3
+        });
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_array_prefix_items_unique_items() {
+        let schema = json!({
+            "type": "array",
+            "prefixItems": [{"enum": ["a", "b"]}],
+            "items": {"type": "integer", "minimum": 0, "maximum": 1000},
+            "uniqueItems": true,
+            "minItems": 1,
+            "maxItems": 4
+        });
+        generate_and_validate_n(&schema, 100);
     }
 
     // ── Composition ──

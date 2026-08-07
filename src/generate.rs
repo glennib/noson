@@ -809,11 +809,36 @@ fn generate_array(
         max_depth: ctx.max_depth,
     };
 
+    let prefix_items: &[Value] = match obj.get("prefixItems") {
+        None => &[],
+        Some(Value::Array(schemas)) => schemas,
+        Some(other) => {
+            return Err(Error::InvalidSchema {
+                message: format!("prefixItems must be an array, got {other}"),
+            });
+        }
+    };
+
     let min_items = obj.get("minItems").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-    let max_items = obj
+    let mut max_items = obj
         .get("maxItems")
         .and_then(|v| v.as_u64())
-        .unwrap_or(min_items.max(3) as u64) as usize;
+        .map(|v| v as usize);
+
+    // `items: false` rejects every element beyond the prefix, so the tuple
+    // length caps the count.
+    if obj.get("items") == Some(&Value::Bool(false)) {
+        if min_items > prefix_items.len() {
+            return Err(Error::ConflictingConstraints {
+                message: format!(
+                    "minItems ({min_items}) exceeds the {} prefixItems and items is false",
+                    prefix_items.len()
+                ),
+            });
+        }
+        max_items = Some(max_items.map_or(prefix_items.len(), |m| m.min(prefix_items.len())));
+    }
+    let max_items = max_items.unwrap_or_else(|| min_items.max(prefix_items.len()).max(3));
 
     if min_items > max_items {
         return Err(Error::ConflictingConstraints {
@@ -821,7 +846,10 @@ fn generate_array(
         });
     }
 
-    let count = rng.random_range(min_items..=max_items);
+    // Arrays shorter than the prefix are valid but make poor examples, so
+    // the count covers the full tuple whenever the bounds allow.
+    let count_min = min_items.max(prefix_items.len().min(max_items));
+    let count = rng.random_range(count_min..=max_items);
 
     let item_schema = obj.get("items").cloned().unwrap_or(Value::Bool(true));
 
@@ -830,12 +858,20 @@ fn generate_array(
         .and_then(Value::as_bool)
         .unwrap_or(false)
     {
-        return generate_unique_array(&child_ctx, &item_schema, min_items, count, rng);
+        return generate_unique_array(
+            &child_ctx,
+            prefix_items,
+            &item_schema,
+            min_items,
+            count,
+            rng,
+        );
     }
 
     let mut items = Vec::with_capacity(count);
-    for _ in 0..count {
-        items.push(generate_value(&child_ctx, &item_schema, rng)?);
+    for i in 0..count {
+        let slot_schema = prefix_items.get(i).unwrap_or(&item_schema);
+        items.push(generate_value(&child_ctx, slot_schema, rng)?);
     }
 
     Ok(Value::Array(items))
@@ -845,11 +881,13 @@ fn generate_array(
 const UNIQUE_ITEM_RETRIES: usize = 16;
 
 /// Generate `count` distinct items, retrying each slot on collision.
-/// When a slot cannot be filled, any length at or above `min_items` is
-/// still valid, so the array is returned short; below `min_items` the
-/// constraints are unsatisfiable.
+/// Slots within the prefix draw from their positional `prefixItems` schema,
+/// the rest from `item_schema`. When a slot cannot be filled, any length at
+/// or above `min_items` is still valid, so the array is returned short;
+/// below `min_items` the constraints are unsatisfiable.
 fn generate_unique_array(
     ctx: &Context,
+    prefix_items: &[Value],
     item_schema: &Value,
     min_items: usize,
     count: usize,
@@ -857,9 +895,10 @@ fn generate_unique_array(
 ) -> Result<Value, Error> {
     let mut items: Vec<Value> = Vec::with_capacity(count);
     while items.len() < count {
+        let slot_schema = prefix_items.get(items.len()).unwrap_or(item_schema);
         let mut filled = false;
         for _ in 0..UNIQUE_ITEM_RETRIES {
-            let candidate = generate_value(ctx, item_schema, rng)?;
+            let candidate = generate_value(ctx, slot_schema, rng)?;
             if !items.contains(&candidate) {
                 items.push(candidate);
                 filled = true;
