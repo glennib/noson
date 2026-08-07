@@ -447,6 +447,16 @@ fn get_number_bound(
     (None, false)
 }
 
+/// How the schema constrains properties beyond the declared `properties`.
+enum ExtraValues<'a> {
+    /// `additionalProperties: false`
+    Forbidden,
+    /// `additionalProperties` absent or `true`
+    Any,
+    /// `additionalProperties` is a schema
+    Schema(&'a Value),
+}
+
 fn generate_object(
     ctx: &Context,
     obj: &Map<String, Value>,
@@ -462,24 +472,224 @@ fn generate_object(
         max_depth: ctx.max_depth,
     };
 
-    let mut result = Map::new();
+    let properties = match obj.get("properties") {
+        Some(Value::Object(props)) => Some(props),
+        _ => None,
+    };
 
     let required: Vec<&str> = match obj.get("required") {
         Some(Value::Array(arr)) => arr.iter().filter_map(|v| v.as_str()).collect(),
         _ => Vec::new(),
     };
 
-    if let Some(Value::Object(properties)) = obj.get("properties") {
-        for (key, prop_schema) in properties {
-            let is_required = required.iter().any(|r| r == key);
-            if is_required || rng.random_bool(0.5) {
-                let val = generate_value(&child_ctx, prop_schema, rng)?;
-                result.insert(key.clone(), val);
+    let min_props = obj
+        .get("minProperties")
+        .and_then(Value::as_u64)
+        .unwrap_or(0) as usize;
+    let max_props = obj
+        .get("maxProperties")
+        .and_then(Value::as_u64)
+        .map_or(usize::MAX, |v| v as usize);
+
+    if min_props > max_props {
+        return Err(Error::ConflictingConstraints {
+            message: format!("minProperties ({min_props}) > maxProperties ({max_props})"),
+        });
+    }
+    if required.len() > max_props {
+        return Err(Error::ConflictingConstraints {
+            message: format!(
+                "required has {} properties, maxProperties is {max_props}",
+                required.len()
+            ),
+        });
+    }
+
+    let pattern_properties: Vec<(&String, &Value)> = match obj.get("patternProperties") {
+        Some(Value::Object(patterns)) => patterns.iter().collect(),
+        _ => Vec::new(),
+    };
+    let extra_values = match obj.get("additionalProperties") {
+        None | Some(Value::Bool(true)) => ExtraValues::Any,
+        Some(Value::Bool(false)) => ExtraValues::Forbidden,
+        Some(schema @ Value::Object(_)) => ExtraValues::Schema(schema),
+        Some(other) => {
+            return Err(Error::InvalidSchema {
+                message: format!("additionalProperties must be a boolean or schema, got {other}"),
+            });
+        }
+    };
+
+    let mut optional: Vec<(&String, &Value)> = properties
+        .map(|props| {
+            props
+                .iter()
+                .filter(|(key, _)| !required.contains(&key.as_str()))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let declared_total = required.len() + optional.len();
+    let target_min = required.len().max(min_props);
+    let can_synthesize =
+        !pattern_properties.is_empty() || !matches!(extra_values, ExtraValues::Forbidden);
+
+    // Extra (undeclared) properties are synthesized only when the declared
+    // ones cannot reach the minimum count; the headroom above `target_min`
+    // gives map-shaped schemas some size variety.
+    let target_max = if declared_total >= target_min {
+        max_props.min(declared_total)
+    } else if can_synthesize {
+        max_props.min(target_min + 3)
+    } else {
+        return Err(Error::ConflictingConstraints {
+            message: format!(
+                "minProperties ({min_props}) exceeds the {declared_total} declared properties \
+                 and no additionalProperties/patternProperties schema allows more"
+            ),
+        });
+    };
+    let target = rng.random_range(target_min..=target_max);
+
+    let mut result = Map::new();
+
+    for name in &required {
+        let value = match properties.and_then(|props| props.get(*name)) {
+            Some(prop_schema) => generate_value(&child_ctx, prop_schema, rng)?,
+            None => match extra_values {
+                ExtraValues::Schema(schema) => generate_value(&child_ctx, schema, rng)?,
+                ExtraValues::Any => generate_random_simple(rng),
+                ExtraValues::Forbidden => {
+                    return Err(Error::ConflictingConstraints {
+                        message: format!(
+                            "required property `{name}` is not declared in properties and \
+                             additionalProperties is false"
+                        ),
+                    });
+                }
+            },
+        };
+        result.insert((*name).to_string(), value);
+    }
+
+    // Optional declared properties fill toward the target, sampled without
+    // replacement.
+    let mut take = target.saturating_sub(result.len()).min(optional.len());
+    while take > 0 {
+        let idx = rng.random_range(0..optional.len());
+        let (name, prop_schema) = optional.swap_remove(idx);
+        let value = generate_value(&child_ctx, prop_schema, rng)?;
+        result.insert(name.clone(), value);
+        take -= 1;
+    }
+
+    while result.len() < target {
+        let inserted = synthesize_extra_property(
+            &child_ctx,
+            obj,
+            &pattern_properties,
+            &extra_values,
+            &mut result,
+            rng,
+        )?;
+        if !inserted {
+            if result.len() >= min_props {
+                break;
             }
+            return Err(Error::ConflictingConstraints {
+                message: format!(
+                    "could not synthesize enough distinct property names to reach \
+                     minProperties ({min_props})"
+                ),
+            });
         }
     }
 
     Ok(Value::Object(result))
+}
+
+/// Attempts per synthesized property before concluding the name space is
+/// exhausted.
+const EXTRA_NAME_RETRIES: usize = 16;
+
+/// Synthesize one undeclared property into `result`. The name comes from a
+/// `patternProperties` regex when one exists (its value schema is then the
+/// one that validator applies), otherwise from the `propertyNames` schema,
+/// otherwise a random alphanumeric string; the value comes from the
+/// matching `patternProperties` schema or from `additionalProperties`.
+/// Returns `false` when no fresh name was found.
+fn synthesize_extra_property(
+    ctx: &Context,
+    obj: &Map<String, Value>,
+    pattern_properties: &[(&String, &Value)],
+    extra_values: &ExtraValues,
+    result: &mut Map<String, Value>,
+    rng: &mut impl Rng,
+) -> Result<bool, Error> {
+    for _ in 0..EXTRA_NAME_RETRIES {
+        let (name, value_schema) = if pattern_properties.is_empty() {
+            let name = if let Some(names_schema) = obj.get("propertyNames") {
+                generate_property_name(ctx, names_schema, rng)?
+            } else {
+                let len = rng.random_range(4..=10);
+                random_alphanumeric_string(rng, len)
+            };
+            let value_schema = match extra_values {
+                ExtraValues::Schema(schema) => Some(*schema),
+                _ => None,
+            };
+            (name, value_schema)
+        } else {
+            let idx = rng.random_range(0..pattern_properties.len());
+            let (pattern, schema) = pattern_properties[idx];
+            match xeger::generate_matching(pattern, rng) {
+                Some(name) => (name, Some(schema)),
+                None => continue,
+            }
+        };
+        if result.contains_key(&name) {
+            continue;
+        }
+        let value = match value_schema {
+            Some(schema) => generate_value(ctx, schema, rng)?,
+            None => generate_random_simple(rng),
+        };
+        result.insert(name, value);
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+/// Generate a property name from a `propertyNames` schema. Keys are always
+/// strings, so `type: string` is implied when the schema does not state it.
+fn generate_property_name(
+    ctx: &Context,
+    names_schema: &Value,
+    rng: &mut impl Rng,
+) -> Result<String, Error> {
+    let mut merged = match names_schema {
+        Value::Bool(true) => Map::new(),
+        Value::Bool(false) => {
+            return Err(Error::ConflictingConstraints {
+                message: "propertyNames is false, no property name is valid".into(),
+            });
+        }
+        Value::Object(o) => o.clone(),
+        other => {
+            return Err(Error::InvalidSchema {
+                message: format!("propertyNames must be a boolean or schema, got {other}"),
+            });
+        }
+    };
+    merged
+        .entry("type")
+        .or_insert_with(|| Value::String("string".into()));
+    match generate_value(ctx, &Value::Object(merged), rng)? {
+        Value::String(s) => Ok(s),
+        other => Err(Error::InvalidSchema {
+            message: format!("propertyNames schema generated a non-string name: {other}"),
+        }),
+    }
 }
 
 fn generate_array(

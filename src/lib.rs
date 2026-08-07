@@ -40,6 +40,13 @@
 //!   number of times per slot; when the item space is exhausted the array is
 //!   returned short (never below `minItems`), and an error is returned when
 //!   `minItems` distinct items cannot be found
+//! - **Object sizing**: `minProperties`/`maxProperties` — property selection
+//!   is count-aware: all required properties plus a random number of optional
+//!   ones within the allowed range. When the declared properties cannot reach
+//!   `minProperties`, extra entries are synthesized: names come from a
+//!   `patternProperties` regex, the `propertyNames` schema, or fall back to
+//!   random strings; values come from the matching `patternProperties` schema
+//!   or `additionalProperties` (when it is a schema)
 //! - **Pattern**: `pattern` — a random string is generated from the regex.
 //!   `pattern` takes precedence over `format`, and `minLength`/`maxLength` are
 //!   ignored when it applies. Patterns the generator cannot handle (invalid
@@ -63,8 +70,9 @@
 //!
 //! - **String**: `contentEncoding`, `contentMediaType`
 //! - **Numeric**: `multipleOf`
-//! - **Object**: `additionalProperties`, `patternProperties`, `propertyNames`,
-//!   `minProperties`, `maxProperties`, `unevaluatedProperties`
+//! - **Object**: `unevaluatedProperties`; `patternProperties` and
+//!   `propertyNames` are only consulted when synthesizing extra entries —
+//!   they are not enforced on declared `properties`
 //! - **Array**: `prefixItems`, `additionalItems`, `contains`, `minContains`,
 //!   `maxContains`, `unevaluatedItems`
 //! - **Composition**: `not`, `if`/`then`/`else`
@@ -357,6 +365,155 @@ mod tests {
             "required": ["address"]
         });
         generate_and_validate_n(&schema, 20);
+    }
+
+    #[test]
+    fn test_object_max_properties() {
+        // Many optional properties and a low cap — selection must be
+        // count-aware, not a coin flip per property.
+        let schema = json!({
+            "type": "object",
+            "additionalProperties": false,
+            "maxProperties": 3,
+            "properties": {
+                "a": {"type": "number"},
+                "b": {"type": "number"},
+                "c": {"type": "number"},
+                "d": {"type": "number"},
+                "e": {"type": "number"},
+                "f": {"type": "number"},
+                "g": {"type": "number"}
+            }
+        });
+        generate_and_validate_n(&schema, 100);
+    }
+
+    #[test]
+    fn test_object_min_properties_from_declared() {
+        let schema = json!({
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 2,
+            "properties": {
+                "a": {"type": "string"},
+                "b": {"type": "string"},
+                "c": {"type": "string"}
+            }
+        });
+        generate_and_validate_n(&schema, 100);
+    }
+
+    #[test]
+    fn test_object_map_shaped_additional_properties() {
+        // No declared properties — entries must be synthesized from the
+        // additionalProperties schema to satisfy minProperties.
+        let schema = json!({
+            "type": "object",
+            "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1},
+            "minProperties": 1,
+            "maxProperties": 4
+        });
+        let mut rng = seeded_rng();
+        for i in 0..100 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                jsonschema::is_valid(&schema, &result),
+                "sample {i} does not validate.\nvalue: {result}"
+            );
+            let len = result.as_object().unwrap().len();
+            assert!((1..=4).contains(&len), "sample {i} has {len} properties");
+        }
+    }
+
+    #[test]
+    fn test_object_pattern_properties_names_min_properties() {
+        // Synthesized names must come from the patternProperties regex —
+        // additionalProperties: false rejects everything else.
+        let schema = json!({
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[a-z]{2,20}$": {"type": "boolean"}
+            },
+            "minProperties": 2
+        });
+        generate_and_validate_n(&schema, 100);
+    }
+
+    #[test]
+    fn test_object_property_names_min_properties() {
+        let schema = json!({
+            "type": "object",
+            "additionalProperties": {"type": "string"},
+            "propertyNames": {"pattern": "^[a-z]+$"},
+            "minProperties": 1
+        });
+        generate_and_validate_n(&schema, 100);
+    }
+
+    #[test]
+    fn test_object_without_min_properties_synthesizes_nothing() {
+        // A map-shaped schema with no lower bound keeps its current
+        // behavior: no entries are invented.
+        let schema = json!({
+            "type": "object",
+            "additionalProperties": false,
+            "patternProperties": {
+                "^[a-z]+$": {"type": "string"}
+            }
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..20 {
+            let result = generate(&schema, &mut rng).unwrap();
+            assert_eq!(result, json!({}));
+        }
+    }
+
+    #[test]
+    fn test_object_required_undeclared_property_is_generated() {
+        let schema = json!({
+            "type": "object",
+            "required": ["mystery"]
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..20 {
+            let result = generate(&schema, &mut rng).unwrap();
+            assert!(
+                result.as_object().unwrap().contains_key("mystery"),
+                "required property missing: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_object_max_properties_below_required_returns_error() {
+        let schema = json!({
+            "type": "object",
+            "properties": {"a": {"type": "string"}, "b": {"type": "string"}},
+            "required": ["a", "b"],
+            "maxProperties": 1
+        });
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_object_min_properties_unsatisfiable_returns_error() {
+        let schema = json!({
+            "type": "object",
+            "additionalProperties": false,
+            "minProperties": 1
+        });
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
     }
 
     // ── Arrays ──
