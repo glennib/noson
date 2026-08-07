@@ -37,7 +37,6 @@ const MAX_EXAMPLES: usize = 3;
 const EXPECTED_FAILURES: &[&str] = &[
     "09-geo_point",      // prefixItems
     "10-publish_window", // dependentRequired
-    "23-locale",         // pattern ignores maxLength
     "35-geo_point",      // prefixItems
 ];
 

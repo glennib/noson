@@ -50,10 +50,12 @@
 //!   random strings; values come from the matching `patternProperties` schema
 //!   or `additionalProperties` (when it is a schema)
 //! - **Pattern**: `pattern` — a random string is generated from the regex.
-//!   `pattern` takes precedence over `format`, and `minLength`/`maxLength` are
-//!   ignored when it applies. Patterns the generator cannot handle (invalid
-//!   regexes, classes matching nothing) silently fall back to unconstrained
-//!   string generation, so the result may not satisfy the pattern.
+//!   `pattern` takes precedence over `format`. Samples are redrawn until one
+//!   also satisfies `minLength`/`maxLength`; when no sample fits after a
+//!   bounded number of attempts, the constraints are reported as conflicting.
+//!   Patterns the generator cannot handle (invalid regexes, classes matching
+//!   nothing) silently fall back to unconstrained string generation, so the
+//!   result may not satisfy the pattern.
 //! - **Format**: `date-time`, `date`, `time`, `duration`, `uuid`, `email`,
 //!   `uri`, `hostname`, `ipv4`, `ipv6`
 //! - **Enum / Const**: `enum`, `const`
@@ -1633,14 +1635,39 @@ mod tests {
     }
 
     #[test]
-    fn test_string_pattern_ignores_length_constraints() {
-        // Documented precedence: when pattern generation succeeds,
-        // minLength/maxLength are ignored (so this value legitimately
-        // violates minLength and the validation oracle is not used).
+    fn test_string_pattern_with_max_length() {
+        // BCP 47-ish: the unbounded `*` can generate far past maxLength, so
+        // samples must be redrawn until one fits.
+        let schema = json!({
+            "type": "string",
+            "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$",
+            "minLength": 2,
+            "maxLength": 20
+        });
+        generate_and_validate_n(&schema, 200);
+    }
+
+    #[test]
+    fn test_string_pattern_min_length_conflict_returns_error() {
+        // Every match is exactly two chars; minLength 10 is unsatisfiable.
         let schema = json!({"type": "string", "pattern": "^ab$", "minLength": 10});
         let mut rng = seeded_rng();
-        let result = generate(&schema, &mut rng).expect("generation should succeed");
-        assert_eq!(result.as_str().unwrap(), "ab");
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_string_pattern_max_length_conflict_returns_error() {
+        let schema = json!({"type": "string", "pattern": "^[a-z]{10}$", "maxLength": 5});
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
     }
 
     #[test]

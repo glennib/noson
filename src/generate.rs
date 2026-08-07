@@ -164,16 +164,50 @@ fn random_alphanumeric_string(rng: &mut impl Rng, len: usize) -> String {
         .collect()
 }
 
+/// Samples drawn from a `pattern` before concluding its length constraints
+/// cannot be met.
+const PATTERN_LENGTH_RETRIES: usize = 64;
+
 fn generate_string(obj: &Map<String, Value>, rng: &mut impl Rng) -> Result<Value, Error> {
-    // `pattern` is an assertion keyword, so it takes precedence over
-    // `format` (annotation-only by default). When pattern generation
-    // succeeds, `minLength`/`maxLength` are ignored (same precedent as
-    // `format`). Unsupported patterns fall through to unconstrained
-    // generation.
-    if let Some(Value::String(pattern)) = obj.get("pattern")
-        && let Some(s) = xeger::generate_matching(pattern, rng)
+    let min_len = obj.get("minLength").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+    let max_len_constraint = obj
+        .get("maxLength")
+        .and_then(|v| v.as_u64())
+        .map(|v| v as usize);
+
+    if let Some(max_len) = max_len_constraint
+        && min_len > max_len
     {
-        return Ok(Value::String(s));
+        return Err(Error::ConflictingConstraints {
+            message: format!("minLength ({min_len}) > maxLength ({max_len})"),
+        });
+    }
+
+    // `pattern` is an assertion keyword, so it takes precedence over
+    // `format` (annotation-only by default). Samples are redrawn until one
+    // also satisfies `minLength`/`maxLength` (length in code points, per the
+    // spec); when none does, the constraints conflict. Unsupported patterns
+    // fall through to unconstrained generation.
+    if let Some(Value::String(pattern)) = obj.get("pattern") {
+        let mut pattern_supported = false;
+        for _ in 0..PATTERN_LENGTH_RETRIES {
+            let Some(s) = xeger::generate_matching(pattern, rng) else {
+                break;
+            };
+            pattern_supported = true;
+            let len = s.chars().count();
+            if len >= min_len && max_len_constraint.is_none_or(|max| len <= max) {
+                return Ok(Value::String(s));
+            }
+        }
+        if pattern_supported {
+            return Err(Error::ConflictingConstraints {
+                message: format!(
+                    "no string matching pattern `{pattern}` satisfied \
+                     minLength/maxLength in {PATTERN_LENGTH_RETRIES} attempts"
+                ),
+            });
+        }
     }
 
     if let Some(Value::String(format)) = obj.get("format")
@@ -182,18 +216,7 @@ fn generate_string(obj: &Map<String, Value>, rng: &mut impl Rng) -> Result<Value
         return Ok(value);
     }
 
-    let min_len = obj.get("minLength").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
-    let max_len = obj
-        .get("maxLength")
-        .and_then(|v| v.as_u64())
-        .unwrap_or(min_len.max(10) as u64) as usize;
-
-    if min_len > max_len {
-        return Err(Error::ConflictingConstraints {
-            message: format!("minLength ({min_len}) > maxLength ({max_len})"),
-        });
-    }
-
+    let max_len = max_len_constraint.unwrap_or(min_len.max(10));
     let len = rng.random_range(min_len..=max_len);
     Ok(Value::String(random_alphanumeric_string(rng, len)))
 }
