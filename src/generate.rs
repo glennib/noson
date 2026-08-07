@@ -111,18 +111,28 @@ fn generate_value(ctx: &Context, schema: &Value, rng: &mut impl Rng) -> Result<V
 
     // Dispatch on "type"
     if let Some(Value::String(type_name)) = obj.get("type") {
-        return match type_name.as_str() {
-            "null" => Ok(Value::Null),
-            "boolean" => Ok(Value::Bool(rng.random_bool(0.5))),
-            "string" => generate_string(obj, rng),
-            "integer" => generate_integer(obj, rng),
-            "number" => generate_number(obj, rng),
-            "object" => generate_object(ctx, obj, rng),
-            "array" => generate_array(ctx, obj, rng),
-            other => Err(Error::UnsupportedType {
-                type_name: other.into(),
-            }),
+        return generate_typed(ctx, obj, type_name, rng);
+    }
+
+    // "type" as an array of type names — pick one uniformly, then generate
+    // with the full schema so sibling constraints (minimum, maxLength, …)
+    // still apply to the picked type.
+    if let Some(Value::Array(type_names)) = obj.get("type") {
+        if type_names.is_empty() {
+            return Err(Error::InvalidSchema {
+                message: "type array must have at least one entry".into(),
+            });
+        }
+        let idx = rng.random_range(0..type_names.len());
+        let Some(type_name) = type_names[idx].as_str() else {
+            return Err(Error::InvalidSchema {
+                message: format!(
+                    "type array entries must be strings, got {}",
+                    type_names[idx]
+                ),
+            });
         };
+        return generate_typed(ctx, obj, type_name, rng);
     }
 
     // No type but has properties → treat as object
@@ -137,6 +147,26 @@ fn generate_value(ctx: &Context, schema: &Value, rng: &mut impl Rng) -> Result<V
 
     // No type info at all — generate random simple value
     Ok(generate_random_simple(rng))
+}
+
+fn generate_typed(
+    ctx: &Context,
+    obj: &Map<String, Value>,
+    type_name: &str,
+    rng: &mut impl Rng,
+) -> Result<Value, Error> {
+    match type_name {
+        "null" => Ok(Value::Null),
+        "boolean" => Ok(Value::Bool(rng.random_bool(0.5))),
+        "string" => generate_string(obj, rng),
+        "integer" => generate_integer(obj, rng),
+        "number" => generate_number(obj, rng),
+        "object" => generate_object(ctx, obj, rng),
+        "array" => generate_array(ctx, obj, rng),
+        other => Err(Error::UnsupportedType {
+            type_name: other.into(),
+        }),
+    }
 }
 
 fn generate_random_simple(rng: &mut impl Rng) -> Value {

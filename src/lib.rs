@@ -31,6 +31,8 @@
 //!
 //! - **Types**: `null`, `boolean`, `string`, `integer`, `number`, `object`,
 //!   `array`
+//! - **Type unions**: `"type": ["string", "null"]` (array form of `type`) —
+//!   one type is picked uniformly, and sibling constraints apply to it
 //! - **Constraints**: `minimum`/`maximum`,
 //!   `exclusiveMinimum`/`exclusiveMaximum`, `minLength`/`maxLength`,
 //!   `minItems`/`maxItems`
@@ -60,7 +62,6 @@
 //! - **Composition**: `not`, `if`/`then`/`else`
 //! - **Dependencies**: `dependentRequired`, `dependentSchemas`
 //! - **References**: external `$ref` (http/file URIs), `$dynamicRef`, `$anchor`
-//! - **Type unions**: `"type": ["string", "null"]` (array form of `type`)
 
 mod error;
 mod generate;
@@ -175,6 +176,80 @@ mod tests {
             );
         }
         generate_and_validate_n(&schema, 50);
+    }
+
+    // ── Type unions ──
+
+    #[test]
+    fn test_type_array_integer_null() {
+        let schema = json!({"type": ["integer", "null"], "minimum": 1, "maximum": 6});
+        let mut rng = seeded_rng();
+        let mut saw_integer = false;
+        let mut saw_null = false;
+        for _ in 0..200 {
+            let result = generate(&schema, &mut rng).unwrap();
+            match &result {
+                Value::Null => saw_null = true,
+                Value::Number(n) => {
+                    let n = n.as_i64().unwrap();
+                    assert!((1..=6).contains(&n), "integer {n} out of range [1, 6]");
+                    saw_integer = true;
+                }
+                other => panic!("unexpected variant: {other}"),
+            }
+        }
+        assert!(saw_integer, "type array never generated an integer");
+        assert!(saw_null, "type array never generated null");
+        generate_and_validate_n(&schema, 200);
+    }
+
+    #[test]
+    fn test_type_array_single_entry() {
+        let schema = json!({"type": ["string"], "minLength": 3, "maxLength": 5});
+        let mut rng = seeded_rng();
+        for _ in 0..50 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let s = result.as_str().unwrap();
+            assert!(
+                s.len() >= 3 && s.len() <= 5,
+                "string length {} out of range [3, 5]: {s}",
+                s.len()
+            );
+        }
+        generate_and_validate_n(&schema, 50);
+    }
+
+    #[test]
+    fn test_type_array_empty_returns_error() {
+        let schema = json!({"type": []});
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::InvalidSchema { .. }),
+            "expected InvalidSchema, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_type_array_non_string_entry_returns_error() {
+        let schema = json!({"type": [42]});
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::InvalidSchema { .. }),
+            "expected InvalidSchema, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_type_array_unknown_type_returns_error() {
+        let schema = json!({"type": ["frob"]});
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::UnsupportedType { .. }),
+            "expected UnsupportedType, got: {err}"
+        );
     }
 
     // ── Enum / Const ──

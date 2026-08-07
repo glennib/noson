@@ -44,6 +44,8 @@ Required properties are always included; optional properties are included with
 ## Supported Schema Features
 
 - **Types**: `null`, `boolean`, `string`, `integer`, `number`, `object`, `array`
+- **Type unions**: `"type": ["string", "null"]` (array form of `type`) -- one
+  type is picked uniformly, and sibling constraints apply to it
 - **Constraints**: `minimum`/`maximum`, `exclusiveMinimum`/`exclusiveMaximum`,
   `minLength`/`maxLength`, `minItems`/`maxItems`
 - **Pattern**: `pattern` -- a random string is generated from the regex.
@@ -72,7 +74,6 @@ or, in the case of external `$ref`, return an error.
 - **Composition**: `not`, `if`/`then`/`else`
 - **Dependencies**: `dependentRequired`, `dependentSchemas`
 - **References**: external `$ref` (http/file URIs), `$dynamicRef`, `$anchor`
-- **Type unions**: `"type": ["string", "null"]` (array form of `type`)
 
 ## Roadmap
 

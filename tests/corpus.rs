@@ -38,7 +38,6 @@ const EXPECTED_FAILURES: &[&str] = &[
     "00-emotions",         // maxProperties vs per-property coin flips
     "03-topic_tags",       // uniqueItems
     "05-price_ore",        // multipleOf
-    "06-review_score",     // type as array (["integer", "null"])
     "07-teaser_media",     // format: uri (inside oneOf branches)
     "09-geo_point",        // prefixItems
     "10-publish_window",   // dependentRequired
@@ -49,7 +48,6 @@ const EXPECTED_FAILURES: &[&str] = &[
     "28-story_uuid",       // format: uuid
     "30-emotions",         // maxProperties
     "32-topic_tags",       // uniqueItems
-    "33-review_score",     // type as array (["integer", "null"])
     "34-teaser_media",     // format: uri (inside oneOf branches)
     "35-geo_point",        // prefixItems
     "40-push_message",     // oneOf combined with sibling keywords
