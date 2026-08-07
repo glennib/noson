@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5](https://github.com/glennib/noson/compare/v0.1.4...v0.1.5) - 2026-08-07
+
+### Fixed
+
+- generate RFC 3339-valid durations for `format: duration`
+
+### Other
+
+- Merge pull request #22 from glennib/renovate/actions-checkout-7.x
+- *(deps)* update dev-dependency jsonschema to 0.49.6
+- *(deps)* update rust crate rand to v0.10.1
+- *(deps)* update rust crate jsonschema to 0.45.0
+
 ## [0.1.4](https://github.com/glennib/noson/compare/v0.1.3...v0.1.4) - 2026-03-07
 
 ### Other
