@@ -36,6 +36,8 @@
 //! - **Constraints**: `minimum`/`maximum`,
 //!   `exclusiveMinimum`/`exclusiveMaximum`, `minLength`/`maxLength`,
 //!   `minItems`/`maxItems`
+//! - **Multiples**: `multipleOf` — a random multiple within the bounds,
+//!   erroring when the range contains none
 //! - **Array uniqueness**: `uniqueItems` — collisions are retried a bounded
 //!   number of times per slot; when the item space is exhausted the array is
 //!   returned short (never below `minItems`), and an error is returned when
@@ -69,7 +71,6 @@
 //! generation) or, in the case of external `$ref`, return an error.
 //!
 //! - **String**: `contentEncoding`, `contentMediaType`
-//! - **Numeric**: `multipleOf`
 //! - **Object**: `unevaluatedProperties`; `patternProperties` and
 //!   `propertyNames` are only consulted when synthesizing extra entries —
 //!   they are not enforced on declared `properties`
@@ -190,6 +191,112 @@ mod tests {
                 (1.5..=3.5).contains(&n),
                 "number {n} out of range [1.5, 3.5]"
             );
+        }
+        generate_and_validate_n(&schema, 50);
+    }
+
+    #[test]
+    fn test_integer_multiple_of() {
+        let schema = json!({"type": "integer", "minimum": 0, "multipleOf": 25});
+        generate_and_validate_n(&schema, 100);
+    }
+
+    #[test]
+    fn test_integer_multiple_of_narrow_range() {
+        let schema = json!({
+            "type": "integer",
+            "minimum": 7,
+            "maximum": 30,
+            "multipleOf": 10
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..50 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let n = result.as_i64().unwrap();
+            assert!([10, 20, 30].contains(&n), "expected a multiple of 10: {n}");
+        }
+        generate_and_validate_n(&schema, 50);
+    }
+
+    #[test]
+    fn test_integer_multiple_of_fractional() {
+        // Integers that are multiples of 2.5 are the multiples of 5.
+        let schema = json!({"type": "integer", "minimum": 1, "maximum": 100, "multipleOf": 2.5});
+        let mut rng = seeded_rng();
+        for _ in 0..50 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let n = result.as_i64().unwrap();
+            assert_eq!(n % 5, 0, "expected a multiple of 5: {n}");
+        }
+        generate_and_validate_n(&schema, 50);
+    }
+
+    #[test]
+    fn test_integer_multiple_of_empty_range_returns_error() {
+        let schema = json!({
+            "type": "integer",
+            "minimum": 11,
+            "maximum": 19,
+            "multipleOf": 25
+        });
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_integer_multiple_of_non_positive_returns_error() {
+        let schema = json!({"type": "integer", "multipleOf": 0});
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::InvalidSchema { .. }),
+            "expected InvalidSchema, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_number_multiple_of() {
+        let schema = json!({
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10,
+            "multipleOf": 0.25
+        });
+        generate_and_validate_n(&schema, 100);
+    }
+
+    #[test]
+    fn test_number_multiple_of_fp_awkward_step() {
+        // 0.1 is not exactly representable; k*0.1 must still satisfy the
+        // validator's multipleOf check.
+        let schema = json!({
+            "type": "number",
+            "minimum": 0.05,
+            "maximum": 0.95,
+            "multipleOf": 0.1
+        });
+        generate_and_validate_n(&schema, 100);
+    }
+
+    #[test]
+    fn test_number_multiple_of_exclusive_bounds() {
+        // Only 1.0 and 1.5 remain once the exclusive bounds shave off 0.5
+        // and 2.0.
+        let schema = json!({
+            "type": "number",
+            "exclusiveMinimum": 0.5,
+            "exclusiveMaximum": 2.0,
+            "multipleOf": 0.5
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..50 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let n = result.as_f64().unwrap();
+            assert!(n == 1.0 || n == 1.5, "expected 1.0 or 1.5: {n}");
         }
         generate_and_validate_n(&schema, 50);
     }

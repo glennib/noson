@@ -35,7 +35,6 @@ const MAX_EXAMPLES: usize = 3;
 /// When a file goes green, `expected_failures_still_fail` names it and the
 /// fix is to delete its line here.
 const EXPECTED_FAILURES: &[&str] = &[
-    "05-price_ore",      // multipleOf
     "09-geo_point",      // prefixItems
     "10-publish_window", // dependentRequired
     "23-locale",         // pattern ignores maxLength

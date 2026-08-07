@@ -377,8 +377,40 @@ fn generate_integer(obj: &Map<String, Value>, rng: &mut impl Rng) -> Result<Valu
         });
     }
 
+    if let Some(m_value) = obj.get("multipleOf") {
+        let Some(m) = m_value.as_f64().filter(|m| *m > 0.0) else {
+            return Err(Error::InvalidSchema {
+                message: format!("multipleOf must be a positive number, got {m_value}"),
+            });
+        };
+        let Some(step) = integer_step(m) else {
+            return Err(Error::ConflictingConstraints {
+                message: format!("no integer is a multiple of {m}"),
+            });
+        };
+        let k_min = min.div_euclid(step) + i64::from(min.rem_euclid(step) != 0);
+        let k_max = max.div_euclid(step);
+        if k_min > k_max {
+            return Err(Error::ConflictingConstraints {
+                message: format!("no multiple of {m} in [{min}, {max}]"),
+            });
+        }
+        let k = rng.random_range(k_min..=k_max);
+        return Ok(Value::Number(serde_json::Number::from(k * step)));
+    }
+
     let val = rng.random_range(min..=max);
     Ok(Value::Number(serde_json::Number::from(val)))
+}
+
+/// The smallest positive integer that is a multiple of `m` — the stride for
+/// integer generation under `multipleOf`. Handles fractional `m` (2.5 → 5);
+/// `None` when no small integer multiple exists.
+fn integer_step(m: f64) -> Option<i64> {
+    (1..=1000).find_map(|j| {
+        let candidate = m * f64::from(j);
+        ((candidate - candidate.round()).abs() < 1e-9).then_some(candidate.round() as i64)
+    })
 }
 
 fn get_integer_bound(
@@ -413,6 +445,36 @@ fn generate_number(obj: &Map<String, Value>, rng: &mut impl Rng) -> Result<Value
         });
     }
 
+    if let Some(m_value) = obj.get("multipleOf") {
+        let Some(m) = m_value.as_f64().filter(|m| *m > 0.0) else {
+            return Err(Error::InvalidSchema {
+                message: format!("multipleOf must be a positive number, got {m_value}"),
+            });
+        };
+        // Work in step space: pick an integer k and emit k*m.
+        let mut k_min = (min / m).ceil();
+        let mut k_max = (max / m).floor();
+        if min_exclusive && k_min * m <= min {
+            k_min += 1.0;
+        }
+        if max_exclusive && k_max * m >= max {
+            k_max -= 1.0;
+        }
+        if k_min > k_max {
+            return Err(Error::ConflictingConstraints {
+                message: format!("no multiple of {m} in the range ({min}, {max})"),
+            });
+        }
+        let k = rng.random_range(k_min as i64..=k_max as i64);
+        let val = snap_to_step_decimals(k as f64 * m, m_value);
+        return match serde_json::Number::from_f64(val) {
+            Some(n) => Ok(Value::Number(n)),
+            None => Err(Error::ConflictingConstraints {
+                message: format!("multiple of {m} ({val}) is not representable"),
+            }),
+        };
+    }
+
     let val = rng.random_range(min..=max);
 
     // Clamp away from exclusive bounds with a tiny epsilon
@@ -431,6 +493,23 @@ fn generate_number(obj: &Map<String, Value>, rng: &mut impl Rng) -> Result<Value
         Some(n) => Ok(Value::Number(n)),
         None => Ok(Value::Number(serde_json::Number::from(0))),
     }
+}
+
+/// The binary product `k*m` can land an ulp away from the exact decimal
+/// product (6 * 0.1 = 0.6000000000000001), which validators using exact
+/// rational arithmetic on the decimal representation reject. Rounding to
+/// the decimal precision of `multipleOf`'s own representation recovers the
+/// exact product.
+fn snap_to_step_decimals(val: f64, m_value: &Value) -> f64 {
+    let repr = m_value.to_string();
+    if repr.contains(['e', 'E']) {
+        return val;
+    }
+    let Some(dot) = repr.find('.') else {
+        return val;
+    };
+    let decimals = repr.len() - dot - 1;
+    format!("{val:.decimals$}").parse().unwrap_or(val)
 }
 
 fn get_number_bound(
