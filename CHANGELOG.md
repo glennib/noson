@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.6](https://github.com/glennib/noson/compare/v0.1.5...v0.1.6) - 2026-08-07
+
+### Added
+
+- support the `pattern` keyword via regex string generation
+
+### Other
+
+- Merge pull request #26 from glennib/gb-pattern-keyword-generation
+
 ## [0.1.5](https://github.com/glennib/noson/compare/v0.1.4...v0.1.5) - 2026-08-07
 
 ### Fixed
