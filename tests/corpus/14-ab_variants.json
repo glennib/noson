@@ -1,0 +1,65 @@
+{
+  "identifier": "ab_variants",
+  "scope_class": "global",
+  "description": "Active A/B test variant weights",
+  "prompt": "An object with 1 to 4 properties; each key is a variant name, each value a weight between 0 and 1.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema restricts the object to have between 1 and 4 properties representing the variants, with each property value constrained to a number between 0 and 1.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": {
+      "maximum": 1,
+      "minimum": 0,
+      "type": "number"
+    },
+    "maxProperties": 4,
+    "minProperties": 1,
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(schema)",
+    "maxProperties",
+    "minProperties"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 100,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": {},
+        "errors": [
+          {
+            "message": "{} has less than 1 property",
+            "instance_path": "",
+            "schema_path": "/minProperties"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": {},
+        "errors": [
+          {
+            "message": "{} has less than 1 property",
+            "instance_path": "",
+            "schema_path": "/minProperties"
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "value": {},
+        "errors": [
+          {
+            "message": "{} has less than 1 property",
+            "instance_path": "",
+            "schema_path": "/minProperties"
+          }
+        ]
+      }
+    ]
+  }
+}

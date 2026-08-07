@@ -1,0 +1,58 @@
+{
+  "identifier": "brand_color",
+  "scope_class": "site",
+  "description": "Brand color used for article theming",
+  "prompt": "A hex color code like #A1B2C3.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema restricts the value to a string matching a 6-character hexadecimal color code prefixed with a hash symbol. Case-insensitive matching is supported to prevent validation failures on lowercase values.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Hexadecimal color code (e.g. #A1B2C3) for brand-specific article theming",
+    "pattern": "^#[0-9a-fA-F]{6}$",
+    "type": "string"
+  },
+  "suspected_gaps": [
+    "pattern"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 100,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": "ujxzBql3",
+        "errors": [
+          {
+            "message": "\"ujxzBql3\" does not match \"^#[0-9a-fA-F]{6}$\"",
+            "instance_path": "",
+            "schema_path": "/pattern"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": "zsMbNLxQh",
+        "errors": [
+          {
+            "message": "\"zsMbNLxQh\" does not match \"^#[0-9a-fA-F]{6}$\"",
+            "instance_path": "",
+            "schema_path": "/pattern"
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "value": "",
+        "errors": [
+          {
+            "message": "\"\" does not match \"^#[0-9a-fA-F]{6}$\"",
+            "instance_path": "",
+            "schema_path": "/pattern"
+          }
+        ]
+      }
+    ]
+  }
+}

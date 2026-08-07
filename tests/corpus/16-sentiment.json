@@ -1,0 +1,25 @@
+{
+  "identifier": "sentiment",
+  "scope_class": "global",
+  "description": "Overall sentiment of the article",
+  "prompt": "negative, neutral or positive.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema restricts the attribute value to a simple string containing one of the three specified sentiment values using an enum constraint.",
+  "schema": {
+    "description": "Overall sentiment of the article",
+    "enum": [
+      "negative",
+      "neutral",
+      "positive"
+    ],
+    "type": "string"
+  },
+  "suspected_gaps": [],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

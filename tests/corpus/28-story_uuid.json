@@ -1,0 +1,58 @@
+{
+  "identifier": "story_uuid",
+  "scope_class": "global",
+  "description": "Upstream CMS UUID for the story",
+  "prompt": "A UUID.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema specifies a string with a 'uuid' format, which is fully supported by the underlying Rust jsonschema validation engine and ensures a clean UUID constraint.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Upstream CMS UUID for the story",
+    "format": "uuid",
+    "type": "string"
+  },
+  "suspected_gaps": [
+    "format:uuid"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 100,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": "ujxzBql3",
+        "errors": [
+          {
+            "message": "\"ujxzBql3\" is not a \"uuid\"",
+            "instance_path": "",
+            "schema_path": "/format"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": "zsMbNLxQh",
+        "errors": [
+          {
+            "message": "\"zsMbNLxQh\" is not a \"uuid\"",
+            "instance_path": "",
+            "schema_path": "/format"
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "value": "",
+        "errors": [
+          {
+            "message": "\"\" is not a \"uuid\"",
+            "instance_path": "",
+            "schema_path": "/format"
+          }
+        ]
+      }
+    ]
+  }
+}

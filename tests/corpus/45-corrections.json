@@ -1,0 +1,42 @@
+{
+  "identifier": "corrections",
+  "scope_class": "global",
+  "description": "Published corrections",
+  "prompt": "A list of objects with timestamp (date-time) and text (non-empty), newest first.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema represents an array of correction objects, ensuring each has a valid ISO 8601 timestamp and a non-empty description text. The fields are marked as required and additional properties are disabled to keep the correction structure clean.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "description": "The text explaining the correction",
+          "minLength": 1,
+          "type": "string"
+        },
+        "timestamp": {
+          "description": "The date and time when the correction was published",
+          "format": "date-time",
+          "type": "string"
+        }
+      },
+      "required": [
+        "timestamp",
+        "text"
+      ],
+      "type": "object"
+    },
+    "type": "array"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

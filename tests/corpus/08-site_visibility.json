@@ -1,0 +1,29 @@
+{
+  "identifier": "site_visibility",
+  "scope_class": "global",
+  "description": "Per-site visibility overrides",
+  "prompt": "An object mapping site keys (like nettavisen, an) to a boolean visible flag. Site keys are 2-20 lowercase letters.",
+  "model": "gemini-3.5-flash",
+  "notes": "This schema uses patternProperties to define the allowed format for site keys (2-20 lowercase letters) and ensures their values are booleans. Setting additionalProperties to false rejects any invalid keys.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "patternProperties": {
+      "^[a-z]{2,20}$": {
+        "type": "boolean"
+      }
+    },
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)",
+    "patternProperties"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

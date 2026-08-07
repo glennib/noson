@@ -1,0 +1,27 @@
+{
+  "identifier": "paywall_tier",
+  "scope_class": "site",
+  "description": "The paywall tier of the article",
+  "prompt": "One of free, plus or premium.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema defines a simple string type restricted to the three permitted paywall tiers using an enum constraint.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "The paywall tier of the article",
+    "enum": [
+      "free",
+      "plus",
+      "premium"
+    ],
+    "title": "Paywall Tier",
+    "type": "string"
+  },
+  "suspected_gaps": [],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

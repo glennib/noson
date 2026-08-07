@@ -1,0 +1,91 @@
+{
+  "identifier": "geo_point",
+  "scope_class": "global",
+  "description": "Geographic point the story is about",
+  "prompt": "A [latitude, longitude] pair: exactly two numbers, latitude -90..90, longitude -180..180.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema uses draft 2020-12 tuple validation via prefixItems with minItems and maxItems to restrict the array to exactly two elements. Latitude is restricted to [-90, 90] and longitude to [-180, 180] as requested.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "maxItems": 2,
+    "minItems": 2,
+    "prefixItems": [
+      {
+        "description": "Latitude",
+        "maximum": 90,
+        "minimum": -90,
+        "type": "number"
+      },
+      {
+        "description": "Longitude",
+        "maximum": 180,
+        "minimum": -180,
+        "type": "number"
+      }
+    ],
+    "type": "array"
+  },
+  "suspected_gaps": [
+    "prefixItems"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 92,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": [
+          55,
+          "Bql3QHxEN"
+        ],
+        "errors": [
+          {
+            "message": "\"Bql3QHxEN\" is not of type \"number\"",
+            "instance_path": "/1",
+            "schema_path": "/prefixItems/1/type"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": [
+          "sMbNLxQh",
+          "YtHhJYiM"
+        ],
+        "errors": [
+          {
+            "message": "\"sMbNLxQh\" is not of type \"number\"",
+            "instance_path": "/0",
+            "schema_path": "/prefixItems/0/type"
+          },
+          {
+            "message": "\"YtHhJYiM\" is not of type \"number\"",
+            "instance_path": "/1",
+            "schema_path": "/prefixItems/1/type"
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "value": [
+          true,
+          false
+        ],
+        "errors": [
+          {
+            "message": "true is not of type \"number\"",
+            "instance_path": "/0",
+            "schema_path": "/prefixItems/0/type"
+          },
+          {
+            "message": "false is not of type \"number\"",
+            "instance_path": "/1",
+            "schema_path": "/prefixItems/1/type"
+          }
+        ]
+      }
+    ]
+  }
+}

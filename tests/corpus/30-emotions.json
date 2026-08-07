@@ -1,0 +1,115 @@
+{
+  "identifier": "emotions",
+  "scope_class": "global",
+  "description": "NLP-based classification of emotion for the content. Serves an object of at most three emotions with associated confidence or affinity. Each emotion is one of a set of standard emotions.",
+  "prompt": "NLP-based classification of emotion for the content. Serves an object of at most three emotions with associated confidence or affinity. Each emotion is one of a set of standard emotions.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema defines a closed set of standard emotions (Plutchik and Ekman models) as keys with non-negative numeric confidence scores. It restricts the object to a maximum of three properties to meet the constraint without overly restricting the numeric scale of the confidence values.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "maxProperties": 3,
+    "properties": {
+      "anger": {
+        "minimum": 0,
+        "type": "number"
+      },
+      "anticipation": {
+        "minimum": 0,
+        "type": "number"
+      },
+      "disgust": {
+        "minimum": 0,
+        "type": "number"
+      },
+      "fear": {
+        "minimum": 0,
+        "type": "number"
+      },
+      "joy": {
+        "minimum": 0,
+        "type": "number"
+      },
+      "neutral": {
+        "minimum": 0,
+        "type": "number"
+      },
+      "sadness": {
+        "minimum": 0,
+        "type": "number"
+      },
+      "surprise": {
+        "minimum": 0,
+        "type": "number"
+      },
+      "trust": {
+        "minimum": 0,
+        "type": "number"
+      }
+    },
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)",
+    "maxProperties"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 76,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": {
+          "disgust": 58.41592619362002,
+          "fear": 77.19869057468208,
+          "joy": 79.37134566691361,
+          "trust": 11.286499980981791
+        },
+        "errors": [
+          {
+            "message": "{\"disgust\":58.41592619362002,\"fear\":77.19869057468208,\"joy\":79.37134566691361,\"trust\":11.286499980981791} has more than 3 properties",
+            "instance_path": "",
+            "schema_path": "/maxProperties"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": {
+          "disgust": 17.55860501938433,
+          "fear": 96.2602779622632,
+          "joy": 70.8508336683134,
+          "sadness": 20.194173174448515,
+          "surprise": 93.56137124844082,
+          "trust": 19.42876663858799
+        },
+        "errors": [
+          {
+            "message": "{\"disgust\":17.55860501938433,\"fear\":96.2602779622632,\"joy\":70.8508336683134,\"sadness\":20.194173174448515,\"surprise\":93.56137124844082,\"trust\":19.42876663858799} has more than 3 properties",
+            "instance_path": "",
+            "schema_path": "/maxProperties"
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "value": {
+          "anger": 1.7547622770950344,
+          "anticipation": 49.577821337894655,
+          "disgust": 27.14623356430006,
+          "neutral": 28.25358620667253,
+          "surprise": 58.19466619495537
+        },
+        "errors": [
+          {
+            "message": "{\"anger\":1.7547622770950344,\"anticipation\":49.577821337894655,\"disgust\":27.14623356430006,\"neutral\":28.25358620667253,\"surprise\":58.19466619495537} has more than 3 properties",
+            "instance_path": "",
+            "schema_path": "/maxProperties"
+          }
+        ]
+      }
+    ]
+  }
+}

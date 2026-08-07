@@ -1,0 +1,58 @@
+{
+  "identifier": "author_slug",
+  "scope_class": "global",
+  "description": "Canonical author slug",
+  "prompt": "Lowercase letters, digits and hyphens, like jane-doe-2.",
+  "model": "gemini-3.5-flash",
+  "notes": "A simple string type with a safe regular expression pattern enforcing lowercase alphanumeric characters and hyphens, preventing query-time failures from overly complex backtracking.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Canonical author slug consisting of lowercase alphanumeric characters and hyphens",
+    "pattern": "^[a-z0-9-]+$",
+    "type": "string"
+  },
+  "suspected_gaps": [
+    "pattern"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 87,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": "ujxzBql3",
+        "errors": [
+          {
+            "message": "\"ujxzBql3\" does not match \"^[a-z0-9-]+$\"",
+            "instance_path": "",
+            "schema_path": "/pattern"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": "zsMbNLxQh",
+        "errors": [
+          {
+            "message": "\"zsMbNLxQh\" does not match \"^[a-z0-9-]+$\"",
+            "instance_path": "",
+            "schema_path": "/pattern"
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "value": "",
+        "errors": [
+          {
+            "message": "\"\" does not match \"^[a-z0-9-]+$\"",
+            "instance_path": "",
+            "schema_path": "/pattern"
+          }
+        ]
+      }
+    ]
+  }
+}

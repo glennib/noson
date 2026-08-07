@@ -1,0 +1,198 @@
+{
+  "identifier": "topic_tags",
+  "scope_class": "global",
+  "description": "Editorial topic tags",
+  "prompt": "A list of short lowercase tags, no duplicates, at most 10.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema defines an array with a limit of 10 unique items. Each item is validated as a lowercase string containing alphanumeric characters, hyphens, or underscores, with a reasonable maximum length of 50 characters to keep them short.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Editorial topic tags",
+    "items": {
+      "maxLength": 50,
+      "minLength": 1,
+      "pattern": "^[a-z0-9_-]+$",
+      "type": "string"
+    },
+    "maxItems": 10,
+    "type": "array",
+    "uniqueItems": true
+  },
+  "suspected_gaps": [
+    "pattern",
+    "uniqueItems"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 95,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": [
+          "jxzBql3QHxENyynvh2SICH9NDbbpdM7OZjrJu",
+          "dNEg4oveW4y3uE7KNbT6YrYA0E2nsnqyUq3F0F9h3w",
+          "3KFPW5L4hnaQZ",
+          "eqGrnysSzo6C6",
+          "AMvpv",
+          "DL3NuUTWnjMocBkFMUuPCCm6QcKnbD",
+          "zi0W1z69wD",
+          "BW85Ji8GjS2XvxC2dLVgpMZGeSUUSyT71T3EftjLxOhH"
+        ],
+        "errors": [
+          {
+            "message": "\"jxzBql3QHxENyynvh2SICH9NDbbpdM7OZjrJu\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/0",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"dNEg4oveW4y3uE7KNbT6YrYA0E2nsnqyUq3F0F9h3w\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/1",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"3KFPW5L4hnaQZ\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/2",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"eqGrnysSzo6C6\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/3",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"AMvpv\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/4",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"DL3NuUTWnjMocBkFMUuPCCm6QcKnbD\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/5",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"zi0W1z69wD\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/6",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"BW85Ji8GjS2XvxC2dLVgpMZGeSUUSyT71T3EftjLxOhH\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/7",
+            "schema_path": "/items/pattern"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": [
+          "zsMbNLxQh9yYtHhJYiMaDz7zbJMXJN5fYT4VCfmUQP8nl9oCH",
+          "QhMKncW6eDPB9yQSDZo",
+          "MFcMK1y3RNsyMm1H",
+          "234emOD9sfAMtFQp083A",
+          "pzhqKD6",
+          "Oi1yUVpCy",
+          "EcdUIoILz1wo91T9",
+          "SbiFtNQrimS0V",
+          "wf9ufqckyz7LHl"
+        ],
+        "errors": [
+          {
+            "message": "\"zsMbNLxQh9yYtHhJYiMaDz7zbJMXJN5fYT4VCfmUQP8nl9oCH\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/0",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"QhMKncW6eDPB9yQSDZo\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/1",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"MFcMK1y3RNsyMm1H\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/2",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"234emOD9sfAMtFQp083A\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/3",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"pzhqKD6\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/4",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"Oi1yUVpCy\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/5",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"EcdUIoILz1wo91T9\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/6",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"SbiFtNQrimS0V\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/7",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"wf9ufqckyz7LHl\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/8",
+            "schema_path": "/items/pattern"
+          }
+        ]
+      },
+      {
+        "seed": 3,
+        "value": [
+          "WJLsb",
+          "PJZZWpBeT9hhfi87H60KinmwOsU5Uok",
+          "5ILPA0xwxvrmbB",
+          "bK57zzfWtX18JP1GkNMOuqIQ557s9Xir68b7lVr87r3c3se",
+          "QR4qacJwGUX",
+          "8zJ8M7T2qD13kM9K0zhBWVRbYadjjsfmvm19ZO",
+          "Gbl3JHtZQH3"
+        ],
+        "errors": [
+          {
+            "message": "\"WJLsb\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/0",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"PJZZWpBeT9hhfi87H60KinmwOsU5Uok\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/1",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"5ILPA0xwxvrmbB\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/2",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"bK57zzfWtX18JP1GkNMOuqIQ557s9Xir68b7lVr87r3c3se\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/3",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"QR4qacJwGUX\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/4",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"8zJ8M7T2qD13kM9K0zhBWVRbYadjjsfmvm19ZO\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/5",
+            "schema_path": "/items/pattern"
+          },
+          {
+            "message": "\"Gbl3JHtZQH3\" does not match \"^[a-z0-9_-]+$\"",
+            "instance_path": "/6",
+            "schema_path": "/items/pattern"
+          }
+        ]
+      }
+    ]
+  }
+}

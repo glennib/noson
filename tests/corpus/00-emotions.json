@@ -1,0 +1,119 @@
+{
+  "identifier": "emotions",
+  "scope_class": "global",
+  "description": "NLP-based classification of emotion for the content. Serves an object of at most three emotions with associated confidence or affinity. Each emotion is one of a set of standard emotions.",
+  "prompt": "NLP-based classification of emotion for the content. Serves an object of at most three emotions with associated confidence or affinity. Each emotion is one of a set of standard emotions.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema restricts the allowed keys to a standard set of NLP emotions, modeled as confidence scores between 0 and 1, while enforcing a maximum of three properties.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "maxProperties": 3,
+    "properties": {
+      "anger": {
+        "description": "Affinity score for anger",
+        "maximum": 1,
+        "minimum": 0,
+        "type": "number"
+      },
+      "disgust": {
+        "description": "Affinity score for disgust",
+        "maximum": 1,
+        "minimum": 0,
+        "type": "number"
+      },
+      "fear": {
+        "description": "Affinity score for fear",
+        "maximum": 1,
+        "minimum": 0,
+        "type": "number"
+      },
+      "joy": {
+        "description": "Affinity score for joy",
+        "maximum": 1,
+        "minimum": 0,
+        "type": "number"
+      },
+      "neutral": {
+        "description": "Affinity score for neutral",
+        "maximum": 1,
+        "minimum": 0,
+        "type": "number"
+      },
+      "sadness": {
+        "description": "Affinity score for sadness",
+        "maximum": 1,
+        "minimum": 0,
+        "type": "number"
+      },
+      "surprise": {
+        "description": "Affinity score for surprise",
+        "maximum": 1,
+        "minimum": 0,
+        "type": "number"
+      }
+    },
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)",
+    "maxProperties"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 49,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 1,
+        "value": {
+          "fear": 0.17558605019384332,
+          "joy": 0.962602779622632,
+          "neutral": 0.708508336683134,
+          "surprise": 0.20194173174448515
+        },
+        "errors": [
+          {
+            "message": "{\"fear\":0.17558605019384332,\"joy\":0.962602779622632,\"neutral\":0.708508336683134,\"surprise\":0.20194173174448515} has more than 3 properties",
+            "instance_path": "",
+            "schema_path": "/maxProperties"
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "value": {
+          "anger": 0.017547622770950344,
+          "disgust": 0.49577821337894656,
+          "fear": 0.2714623356430006,
+          "sadness": 0.2825358620667253
+        },
+        "errors": [
+          {
+            "message": "{\"anger\":0.017547622770950344,\"disgust\":0.49577821337894656,\"fear\":0.2714623356430006,\"sadness\":0.2825358620667253} has more than 3 properties",
+            "instance_path": "",
+            "schema_path": "/maxProperties"
+          }
+        ]
+      },
+      {
+        "seed": 3,
+        "value": {
+          "anger": 0.35248765884446853,
+          "disgust": 0.42649302554852264,
+          "fear": 0.40437645794642485,
+          "joy": 0.6425132125147417,
+          "neutral": 0.9622703479395289
+        },
+        "errors": [
+          {
+            "message": "{\"anger\":0.35248765884446853,\"disgust\":0.42649302554852264,\"fear\":0.40437645794642485,\"joy\":0.6425132125147417,\"neutral\":0.9622703479395289} has more than 3 properties",
+            "instance_path": "",
+            "schema_path": "/maxProperties"
+          }
+        ]
+      }
+    ]
+  }
+}

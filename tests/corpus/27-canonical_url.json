@@ -1,0 +1,74 @@
+{
+  "identifier": "canonical_url",
+  "scope_class": "global",
+  "description": "Canonical URL override",
+  "prompt": "An absolute https URL.",
+  "model": "gemini-3.5-flash",
+  "notes": "This schema uses the standard 'uri' format combined with a regular expression constraint to ensure the value is a valid absolute URL starting with HTTPS.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "format": "uri",
+    "pattern": "^https://",
+    "type": "string"
+  },
+  "suspected_gaps": [
+    "format:uri",
+    "pattern"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 100,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": "ujxzBql3",
+        "errors": [
+          {
+            "message": "\"ujxzBql3\" does not match \"^https://\"",
+            "instance_path": "",
+            "schema_path": "/pattern"
+          },
+          {
+            "message": "\"ujxzBql3\" is not a \"uri\"",
+            "instance_path": "",
+            "schema_path": "/format"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": "zsMbNLxQh",
+        "errors": [
+          {
+            "message": "\"zsMbNLxQh\" does not match \"^https://\"",
+            "instance_path": "",
+            "schema_path": "/pattern"
+          },
+          {
+            "message": "\"zsMbNLxQh\" is not a \"uri\"",
+            "instance_path": "",
+            "schema_path": "/format"
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "value": "",
+        "errors": [
+          {
+            "message": "\"\" does not match \"^https://\"",
+            "instance_path": "",
+            "schema_path": "/pattern"
+          },
+          {
+            "message": "\"\" is not a \"uri\"",
+            "instance_path": "",
+            "schema_path": "/format"
+          }
+        ]
+      }
+    ]
+  }
+}

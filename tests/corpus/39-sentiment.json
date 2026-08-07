@@ -1,0 +1,26 @@
+{
+  "identifier": "sentiment",
+  "scope_class": "global",
+  "description": "Overall sentiment of the article",
+  "prompt": "negative, neutral or positive.",
+  "model": "gemini-3.5-flash",
+  "notes": "This schema uses a simple string type with an enum constraint to restrict the stored values to exactly 'negative', 'neutral', or 'positive'.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Overall sentiment of the article",
+    "enum": [
+      "negative",
+      "neutral",
+      "positive"
+    ],
+    "type": "string"
+  },
+  "suspected_gaps": [],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

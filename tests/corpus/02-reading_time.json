@@ -1,0 +1,22 @@
+{
+  "identifier": "reading_time",
+  "scope_class": "global",
+  "description": "Estimated reading time of the article",
+  "prompt": "Whole seconds, non-negative.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema uses the integer type with a minimum constraint of 0 to represent non-negative whole seconds. This is a simple, highly compatible constraint that compiles reliably.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Estimated reading time of the article in whole seconds",
+    "minimum": 0,
+    "type": "integer"
+  },
+  "suspected_gaps": [],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

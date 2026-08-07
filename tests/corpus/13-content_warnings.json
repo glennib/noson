@@ -1,0 +1,79 @@
+{
+  "identifier": "content_warnings",
+  "scope_class": "global",
+  "description": "Content warnings shown before the article",
+  "prompt": "A list from a fixed vocabulary: violence, drugs, suicide, sexual-content, spoilers. At least one entry when present, no duplicates.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema defines an array with a fixed set of allowed string values, ensuring unique items and enforcing a minimum length of one to prevent empty lists.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "enum": [
+        "violence",
+        "drugs",
+        "suicide",
+        "sexual-content",
+        "spoilers"
+      ],
+      "type": "string"
+    },
+    "minItems": 1,
+    "type": "array",
+    "uniqueItems": true
+  },
+  "suspected_gaps": [
+    "uniqueItems"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 27,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": [
+          "sexual-content",
+          "suicide",
+          "sexual-content"
+        ],
+        "errors": [
+          {
+            "message": "[\"sexual-content\",\"suicide\",\"sexual-content\"] has non-unique elements",
+            "instance_path": "",
+            "schema_path": "/uniqueItems"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": [
+          "spoilers",
+          "sexual-content",
+          "sexual-content"
+        ],
+        "errors": [
+          {
+            "message": "[\"spoilers\",\"sexual-content\",\"sexual-content\"] has non-unique elements",
+            "instance_path": "",
+            "schema_path": "/uniqueItems"
+          }
+        ]
+      },
+      {
+        "seed": 7,
+        "value": [
+          "violence",
+          "violence"
+        ],
+        "errors": [
+          {
+            "message": "[\"violence\",\"violence\"] has non-unique elements",
+            "instance_path": "",
+            "schema_path": "/uniqueItems"
+          }
+        ]
+      }
+    ]
+  }
+}

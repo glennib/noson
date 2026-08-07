@@ -1,0 +1,30 @@
+{
+  "identifier": "age_limit",
+  "scope_class": "global",
+  "description": "Recommended minimum age",
+  "prompt": "One of 0, 6, 9, 12, 15, 18.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema restricts the value to an integer that must be one of the explicitly allowed age limits using an enum constraint.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Recommended minimum age",
+    "enum": [
+      0,
+      6,
+      9,
+      12,
+      15,
+      18
+    ],
+    "title": "Age Limit",
+    "type": "integer"
+  },
+  "suspected_gaps": [],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

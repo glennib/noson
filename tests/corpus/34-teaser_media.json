@@ -1,0 +1,118 @@
+{
+  "identifier": "teaser_media",
+  "scope_class": "global",
+  "description": "Teaser media for front pages",
+  "prompt": "Either an image (kind, url, alt text) or a video (kind, url, duration in seconds). The kind field distinguishes the two.",
+  "model": "gemini-3.5-flash",
+  "notes": "Used `oneOf` to cleanly enforce either an image or a video schema depending on the value of the `kind` field. Both schemas use the well-known `uri` format for URLs and strictly constrain the allowed keys with `additionalProperties: false`.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "alt": {
+            "description": "Alternative text for accessibility",
+            "type": "string"
+          },
+          "kind": {
+            "const": "image"
+          },
+          "url": {
+            "description": "The URL of the teaser image",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "url",
+          "alt"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "duration": {
+            "description": "The duration of the video in seconds",
+            "minimum": 0,
+            "type": "number"
+          },
+          "kind": {
+            "const": "video"
+          },
+          "url": {
+            "description": "The URL of the teaser video",
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "url",
+          "duration"
+        ],
+        "type": "object"
+      }
+    ],
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)",
+    "format:uri"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 100,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": {
+          "duration": 55.528888006953345,
+          "kind": "video",
+          "url": "zBql3QHx"
+        },
+        "errors": [
+          {
+            "message": "{\"duration\":55.528888006953345,\"kind\":\"video\",\"url\":\"zBql3QHx\"} is not valid under any of the schemas listed in the 'oneOf' keyword",
+            "instance_path": "",
+            "schema_path": "/oneOf"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": {
+          "duration": 79.70796402018155,
+          "kind": "video",
+          "url": "MbNLxQh"
+        },
+        "errors": [
+          {
+            "message": "{\"duration\":79.70796402018155,\"kind\":\"video\",\"url\":\"MbNLxQh\"} is not valid under any of the schemas listed in the 'oneOf' keyword",
+            "instance_path": "",
+            "schema_path": "/oneOf"
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "value": {
+          "alt": "7BR",
+          "kind": "image",
+          "url": "ifYMr"
+        },
+        "errors": [
+          {
+            "message": "{\"alt\":\"7BR\",\"kind\":\"image\",\"url\":\"ifYMr\"} is not valid under any of the schemas listed in the 'oneOf' keyword",
+            "instance_path": "",
+            "schema_path": "/oneOf"
+          }
+        ]
+      }
+    ]
+  }
+}

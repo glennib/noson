@@ -1,0 +1,65 @@
+{
+  "identifier": "push_message",
+  "scope_class": "site",
+  "description": "Push notification message",
+  "prompt": "An object with channel (push or sms) and text. When channel is sms the text is limited to 160 characters, otherwise 512.",
+  "model": "gemini-3.5-flash",
+  "notes": "This schema uses an if-then-else block to enforce a stricter maxLength of 160 characters on the text when the channel is sms, defaulting to 512 characters otherwise.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "else": {
+      "properties": {
+        "text": {
+          "maxLength": 512
+        }
+      }
+    },
+    "if": {
+      "properties": {
+        "channel": {
+          "const": "sms"
+        }
+      }
+    },
+    "properties": {
+      "channel": {
+        "description": "The delivery channel",
+        "enum": [
+          "push",
+          "sms"
+        ],
+        "type": "string"
+      },
+      "text": {
+        "description": "The notification text message",
+        "type": "string"
+      }
+    },
+    "required": [
+      "channel",
+      "text"
+    ],
+    "then": {
+      "properties": {
+        "text": {
+          "maxLength": 160
+        }
+      }
+    },
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)",
+    "else",
+    "if",
+    "then"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

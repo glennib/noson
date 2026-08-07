@@ -1,0 +1,81 @@
+{
+  "identifier": "publish_window",
+  "scope_class": "site",
+  "description": "Scheduled publish window",
+  "prompt": "start and end as RFC 3339 date-times. If end is present, start must also be present.",
+  "model": "gemini-3.5-flash",
+  "notes": "We defined 'start' and 'end' with the RFC 3339 'date-time' format. The dependency where 'end' requires 'start' is cleanly enforced using the draft 2020-12 'dependentRequired' constraint.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "dependentRequired": {
+      "end": [
+        "start"
+      ]
+    },
+    "properties": {
+      "end": {
+        "description": "End of the publish window",
+        "format": "date-time",
+        "type": "string"
+      },
+      "start": {
+        "description": "Start of the publish window",
+        "format": "date-time",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)",
+    "dependentRequired"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 23,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 5,
+        "value": {
+          "end": "1993-01-17T10:49:39Z"
+        },
+        "errors": [
+          {
+            "message": "\"start\" is a required property",
+            "instance_path": "",
+            "schema_path": "/dependentRequired"
+          }
+        ]
+      },
+      {
+        "seed": 8,
+        "value": {
+          "end": "2092-10-19T23:37:27Z"
+        },
+        "errors": [
+          {
+            "message": "\"start\" is a required property",
+            "instance_path": "",
+            "schema_path": "/dependentRequired"
+          }
+        ]
+      },
+      {
+        "seed": 20,
+        "value": {
+          "end": "2074-01-22T19:46:32Z"
+        },
+        "errors": [
+          {
+            "message": "\"start\" is a required property",
+            "instance_path": "",
+            "schema_path": "/dependentRequired"
+          }
+        ]
+      }
+    ]
+  }
+}

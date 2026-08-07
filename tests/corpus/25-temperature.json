@@ -1,0 +1,23 @@
+{
+  "identifier": "temperature",
+  "scope_class": "global",
+  "description": "Temperature mentioned in a weather story",
+  "prompt": "Degrees Celsius, strictly between -100 and 100.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema restricts the value to a number strictly between -100 and 100 using exclusive limits, in accordance with JSON Schema draft 2020-12.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Temperature in degrees Celsius",
+    "exclusiveMaximum": 100,
+    "exclusiveMinimum": -100,
+    "type": "number"
+  },
+  "suspected_gaps": [],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

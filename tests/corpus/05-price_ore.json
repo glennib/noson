@@ -1,0 +1,59 @@
+{
+  "identifier": "price_ore",
+  "scope_class": "site",
+  "description": "Single-purchase price of the article",
+  "prompt": "Price in whole Norwegian øre. Prices are always multiples of 25 øre.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema uses an integer type with a minimum of 0 and a multipleOf constraint of 25 to enforce the Norwegian øre pricing rules.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Single-purchase price of the article in whole Norwegian øre (must be a multiple of 25)",
+    "minimum": 0,
+    "multipleOf": 25,
+    "type": "integer"
+  },
+  "suspected_gaps": [
+    "multipleOf"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 94,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": 73,
+        "errors": [
+          {
+            "message": "73 is not a multiple of 25",
+            "instance_path": "",
+            "schema_path": "/multipleOf"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": 98,
+        "errors": [
+          {
+            "message": "98 is not a multiple of 25",
+            "instance_path": "",
+            "schema_path": "/multipleOf"
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "value": 30,
+        "errors": [
+          {
+            "message": "30 is not a multiple of 25",
+            "instance_path": "",
+            "schema_path": "/multipleOf"
+          }
+        ]
+      }
+    ]
+  }
+}

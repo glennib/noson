@@ -1,0 +1,58 @@
+{
+  "identifier": "contact_email",
+  "scope_class": "site",
+  "description": "Tips contact email for the newsroom",
+  "prompt": "A single email address.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema defines a single string constrained by the standard 'email' format, which is fully supported by the Rust jsonschema validator.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Tips contact email for the newsroom",
+    "format": "email",
+    "type": "string"
+  },
+  "suspected_gaps": [
+    "format:email"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 100,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": "ujxzBql3",
+        "errors": [
+          {
+            "message": "\"ujxzBql3\" is not a \"email\"",
+            "instance_path": "",
+            "schema_path": "/format"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": "zsMbNLxQh",
+        "errors": [
+          {
+            "message": "\"zsMbNLxQh\" is not a \"email\"",
+            "instance_path": "",
+            "schema_path": "/format"
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "value": "",
+        "errors": [
+          {
+            "message": "\"\" is not a \"email\"",
+            "instance_path": "",
+            "schema_path": "/format"
+          }
+        ]
+      }
+    ]
+  }
+}

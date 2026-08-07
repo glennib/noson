@@ -1,0 +1,40 @@
+{
+  "identifier": "comment_policy",
+  "scope_class": "site",
+  "description": "Commenting policy for the article",
+  "prompt": "closed, members-only or open; when closed, an optional reason string can be stored.",
+  "model": "gemini-3.5-flash",
+  "notes": "This schema uses an object structure to allow selecting a policy from an enum, while providing an optional 'reason' string field that can be populated when the policy is closed.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "policy": {
+        "enum": [
+          "open",
+          "members-only",
+          "closed"
+        ],
+        "type": "string"
+      },
+      "reason": {
+        "description": "Optional explanation for why comments are closed",
+        "type": "string"
+      }
+    },
+    "required": [
+      "policy"
+    ],
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

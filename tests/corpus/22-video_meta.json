@@ -1,0 +1,45 @@
+{
+  "identifier": "video_meta",
+  "scope_class": "global",
+  "description": "Main video metadata",
+  "prompt": "Duration as an ISO 8601 duration, plus width and height in pixels.",
+  "model": "gemini-3.5-flash",
+  "notes": "This schema uses the standard 'duration' format for ISO 8601 compliance and requires positive integers for width and height dimensions.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "duration": {
+        "description": "ISO 8601 duration representation of the video length",
+        "format": "duration",
+        "type": "string"
+      },
+      "height": {
+        "description": "Height of the video in pixels",
+        "minimum": 1,
+        "type": "integer"
+      },
+      "width": {
+        "description": "Width of the video in pixels",
+        "minimum": 1,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "duration",
+      "width",
+      "height"
+    ],
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

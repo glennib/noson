@@ -1,0 +1,35 @@
+{
+  "identifier": "seo_meta",
+  "scope_class": "global",
+  "description": "SEO metadata overrides",
+  "prompt": "Optional title (max 70 characters) and description (max 160 characters). Nothing else allowed.",
+  "model": "gemini-3.5-flash",
+  "notes": "This schema defines an object with optional 'title' and 'description' fields constrained to 70 and 160 characters respectively, as requested. Setting 'additionalProperties' to false ensures no other keys can be added to the object.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "description": {
+        "description": "Optional SEO meta description override",
+        "maxLength": 160,
+        "type": "string"
+      },
+      "title": {
+        "description": "Optional SEO title override",
+        "maxLength": 70,
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "identifier": "review_score",
+  "scope_class": "global",
+  "description": "Reviewer's dice-roll score",
+  "prompt": "An integer 1-6, or null when the article is not a review.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema uses a type array to allow both integers and null values. The minimum and maximum constraints restrict the integer to the 1-6 range, while null represents a non-review article.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "An integer from 1 to 6 representing a dice-roll score, or null if not a review.",
+    "maximum": 6,
+    "minimum": 1,
+    "title": "Review Score",
+    "type": [
+      "integer",
+      "null"
+    ]
+  },
+  "suspected_gaps": [
+    "type(array)"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 80,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": "jxzBql3Q",
+        "errors": [
+          {
+            "message": "\"jxzBql3Q\" is not of types \"null\", \"integer\"",
+            "instance_path": "",
+            "schema_path": "/type"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": "zsMbNLxQh9",
+        "errors": [
+          {
+            "message": "\"zsMbNLxQh9\" is not of types \"null\", \"integer\"",
+            "instance_path": "",
+            "schema_path": "/type"
+          }
+        ]
+      },
+      {
+        "seed": 3,
+        "value": 9,
+        "errors": [
+          {
+            "message": "9 is greater than the maximum of 6",
+            "instance_path": "",
+            "schema_path": "/maximum"
+          }
+        ]
+      }
+    ]
+  }
+}

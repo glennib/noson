@@ -1,0 +1,29 @@
+{
+  "identifier": "external_refs",
+  "scope_class": "global",
+  "description": "References to the same story in external systems",
+  "prompt": "Object mapping system names (lowercase letters only) to opaque string ids.",
+  "model": "gemini-3.5-flash",
+  "notes": "We use patternProperties with a strict lowercase-only regular expression to validate the keys as system names, and map them to string values. Setting additionalProperties to false prevents keys that do not conform to the lowercase-only constraint.",
+  "schema": {
+    "additionalProperties": false,
+    "patternProperties": {
+      "^[a-z]+$": {
+        "description": "Opaque identifier in the external system",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)",
+    "patternProperties"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

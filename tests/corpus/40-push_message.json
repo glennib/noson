@@ -1,0 +1,129 @@
+{
+  "identifier": "push_message",
+  "scope_class": "site",
+  "description": "Push notification message",
+  "prompt": "An object with channel (push or sms) and text. When channel is sms the text is limited to 160 characters, otherwise 512.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema uses 'oneOf' to conditionally apply different 'maxLength' constraints to the 'text' property depending on the selected 'channel'.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "oneOf": [
+      {
+        "properties": {
+          "channel": {
+            "const": "sms"
+          },
+          "text": {
+            "maxLength": 160
+          }
+        }
+      },
+      {
+        "properties": {
+          "channel": {
+            "const": "push"
+          },
+          "text": {
+            "maxLength": 512
+          }
+        }
+      }
+    ],
+    "properties": {
+      "channel": {
+        "enum": [
+          "push",
+          "sms"
+        ],
+        "type": "string"
+      },
+      "text": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "channel",
+      "text"
+    ],
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)"
+  ],
+  "evaluation": {
+    "samples": 100,
+    "generation_errors": 0,
+    "invalid_samples": 93,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": {},
+        "errors": [
+          {
+            "message": "\"channel\" is a required property",
+            "instance_path": "",
+            "schema_path": "/required"
+          },
+          {
+            "message": "\"text\" is a required property",
+            "instance_path": "",
+            "schema_path": "/required"
+          },
+          {
+            "message": "{} is valid under more than one of the schemas listed in the 'oneOf' keyword",
+            "instance_path": "",
+            "schema_path": "/oneOf"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": {
+          "text": true
+        },
+        "errors": [
+          {
+            "message": "\"channel\" is a required property",
+            "instance_path": "",
+            "schema_path": "/required"
+          },
+          {
+            "message": "true is not of type \"string\"",
+            "instance_path": "/text",
+            "schema_path": "/properties/text/type"
+          },
+          {
+            "message": "{\"text\":true} is valid under more than one of the schemas listed in the 'oneOf' keyword",
+            "instance_path": "",
+            "schema_path": "/oneOf"
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "value": {
+          "text": true
+        },
+        "errors": [
+          {
+            "message": "\"channel\" is a required property",
+            "instance_path": "",
+            "schema_path": "/required"
+          },
+          {
+            "message": "true is not of type \"string\"",
+            "instance_path": "/text",
+            "schema_path": "/properties/text/type"
+          },
+          {
+            "message": "{\"text\":true} is valid under more than one of the schemas listed in the 'oneOf' keyword",
+            "instance_path": "",
+            "schema_path": "/oneOf"
+          }
+        ]
+      }
+    ]
+  }
+}
