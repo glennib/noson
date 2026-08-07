@@ -53,6 +53,10 @@
 //!   `patternProperties` regex, the `propertyNames` schema, or fall back to
 //!   random strings; values come from the matching `patternProperties` schema
 //!   or `additionalProperties` (when it is a schema)
+//! - **Dependencies**: `dependentRequired` — required properties pull in
+//!   their transitive dependents; selecting an optional property pulls in its
+//!   missing dependents too, and candidates whose dependents cannot fit
+//!   within `maxProperties` are skipped
 //! - **Pattern**: `pattern` — a random string is generated from the regex.
 //!   `pattern` takes precedence over `format`. Samples are redrawn until one
 //!   also satisfies `minLength`/`maxLength`; when no sample fits after a
@@ -83,7 +87,7 @@
 //! - **Array**: `additionalItems`, `contains`, `minContains`, `maxContains`,
 //!   `unevaluatedItems`
 //! - **Composition**: `not`, `if`/`then`/`else`
-//! - **Dependencies**: `dependentRequired`, `dependentSchemas`
+//! - **Dependencies**: `dependentSchemas`
 //! - **References**: external `$ref` (http/file URIs), `$dynamicRef`, `$anchor`
 
 mod error;
@@ -620,6 +624,125 @@ mod tests {
             "type": "object",
             "additionalProperties": false,
             "minProperties": 1
+        });
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_object_dependent_required() {
+        let schema = json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "start": {"type": "string", "format": "date-time"},
+                "end": {"type": "string", "format": "date-time"}
+            },
+            "dependentRequired": {"end": ["start"]}
+        });
+        generate_and_validate_n(&schema, 200);
+    }
+
+    #[test]
+    fn test_object_dependent_required_transitive() {
+        let schema = json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "a": {"type": "integer"},
+                "b": {"type": "integer"},
+                "c": {"type": "integer"}
+            },
+            "dependentRequired": {"a": ["b"], "b": ["c"]}
+        });
+        generate_and_validate_n(&schema, 200);
+    }
+
+    #[test]
+    fn test_object_dependent_required_of_required_property() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "end": {"type": "string"},
+                "start": {"type": "string"}
+            },
+            "required": ["end"],
+            "dependentRequired": {"end": ["start"]}
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..50 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                result.get("start").is_some(),
+                "required `end` must pull in `start`, got: {result}"
+            );
+            assert!(jsonschema::is_valid(&schema, &result));
+        }
+    }
+
+    #[test]
+    fn test_object_dependent_required_skips_candidates_over_max_properties() {
+        let schema = json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "a": {"type": "integer"},
+                "b": {"type": "integer"},
+                "c": {"type": "integer"}
+            },
+            "dependentRequired": {"a": ["b", "c"]},
+            "maxProperties": 2
+        });
+        generate_and_validate_n(&schema, 200);
+    }
+
+    #[test]
+    fn test_object_dependent_required_undeclared_dependent() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "a": {"type": "integer"}
+            },
+            "required": ["a"],
+            "dependentRequired": {"a": ["z"]}
+        });
+        generate_and_validate_n(&schema, 50);
+    }
+
+    #[test]
+    fn test_object_dependent_required_exceeding_max_properties_returns_error() {
+        let schema = json!({
+            "type": "object",
+            "properties": {
+                "end": {"type": "string"},
+                "start": {"type": "string"}
+            },
+            "required": ["end"],
+            "dependentRequired": {"end": ["start"]},
+            "maxProperties": 1
+        });
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_object_dependent_required_forbidden_dependent_returns_error() {
+        let schema = json!({
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+                "a": {"type": "integer"}
+            },
+            "required": ["a"],
+            "dependentRequired": {"a": ["z"]}
         });
         let mut rng = seeded_rng();
         let err = generate(&schema, &mut rng).unwrap_err();

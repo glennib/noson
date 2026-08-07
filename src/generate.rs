@@ -579,10 +579,50 @@ fn generate_object(
         _ => None,
     };
 
-    let required: Vec<&str> = match obj.get("required") {
+    let mut required: Vec<&str> = match obj.get("required") {
         Some(Value::Array(arr)) => arr.iter().filter_map(|v| v.as_str()).collect(),
         _ => Vec::new(),
     };
+
+    let dependent_required = match obj.get("dependentRequired") {
+        None => None,
+        Some(Value::Object(map)) => {
+            for (name, deps) in map {
+                let is_string_array =
+                    matches!(deps, Value::Array(deps) if deps.iter().all(Value::is_string));
+                if !is_string_array {
+                    return Err(Error::InvalidSchema {
+                        message: format!(
+                            "dependentRequired entries must be arrays of strings, got {deps} \
+                             for `{name}`"
+                        ),
+                    });
+                }
+            }
+            Some(map)
+        }
+        Some(other) => {
+            return Err(Error::InvalidSchema {
+                message: format!("dependentRequired must be an object, got {other}"),
+            });
+        }
+    };
+
+    // A required property drags in its transitive dependentRequired closure,
+    // so the closure is folded into `required` before the count checks.
+    if let Some(deps_map) = dependent_required {
+        let mut i = 0;
+        while i < required.len() {
+            if let Some(Value::Array(deps)) = deps_map.get(required[i]) {
+                for dep in deps.iter().filter_map(Value::as_str) {
+                    if !required.contains(&dep) {
+                        required.push(dep);
+                    }
+                }
+            }
+            i += 1;
+        }
+    }
 
     let min_props = obj
         .get("minProperties")
@@ -656,36 +696,33 @@ fn generate_object(
     let mut result = Map::new();
 
     for name in &required {
-        let value = match properties.and_then(|props| props.get(*name)) {
-            Some(prop_schema) => generate_value(&child_ctx, prop_schema, rng)?,
-            None => match extra_values {
-                ExtraValues::Schema(schema) => generate_value(&child_ctx, schema, rng)?,
-                ExtraValues::Any => generate_random_simple(rng),
-                ExtraValues::Forbidden => {
-                    return Err(Error::ConflictingConstraints {
-                        message: format!(
-                            "required property `{name}` is not declared in properties and \
-                             additionalProperties is false"
-                        ),
-                    });
-                }
-            },
-        };
+        let value = generate_property_value(&child_ctx, properties, &extra_values, name, rng)?;
         result.insert((*name).to_string(), value);
     }
 
     // Optional declared properties fill toward the target, sampled without
-    // replacement.
-    let mut take = target.saturating_sub(result.len()).min(optional.len());
-    while take > 0 {
+    // replacement. A selected property drags in its missing transitive
+    // dependentRequired closure; candidates whose closure does not fit
+    // within `maxProperties` are skipped.
+    while result.len() < target && !optional.is_empty() {
         let idx = rng.random_range(0..optional.len());
         let (name, prop_schema) = optional.swap_remove(idx);
+        if result.contains_key(name.as_str()) {
+            continue;
+        }
+        let dependents = missing_dependents(dependent_required, name, &result);
+        if result.len() + 1 + dependents.len() > max_props {
+            continue;
+        }
         let value = generate_value(&child_ctx, prop_schema, rng)?;
         result.insert(name.clone(), value);
-        take -= 1;
+        for dep in dependents {
+            let value = generate_property_value(&child_ctx, properties, &extra_values, dep, rng)?;
+            result.insert(dep.to_string(), value);
+        }
     }
 
-    while result.len() < target {
+    while result.len() < target && can_synthesize {
         let inserted = synthesize_extra_property(
             &child_ctx,
             obj,
@@ -695,19 +732,104 @@ fn generate_object(
             rng,
         )?;
         if !inserted {
-            if result.len() >= min_props {
+            break;
+        }
+    }
+
+    if result.len() < min_props {
+        return Err(Error::ConflictingConstraints {
+            message: format!(
+                "could not synthesize enough distinct property names to reach minProperties \
+                 ({min_props})"
+            ),
+        });
+    }
+
+    // Synthesized names can themselves trigger dependentRequired, so a final
+    // closure pass runs over everything present.
+    if let Some(deps_map) = dependent_required {
+        loop {
+            let mut missing: Vec<&str> = Vec::new();
+            for name in result.keys() {
+                if let Some(Value::Array(deps)) = deps_map.get(name) {
+                    for dep in deps.iter().filter_map(Value::as_str) {
+                        if !result.contains_key(dep) && !missing.contains(&dep) {
+                            missing.push(dep);
+                        }
+                    }
+                }
+            }
+            if missing.is_empty() {
                 break;
             }
-            return Err(Error::ConflictingConstraints {
-                message: format!(
-                    "could not synthesize enough distinct property names to reach \
-                     minProperties ({min_props})"
-                ),
-            });
+            if result.len() + missing.len() > max_props {
+                return Err(Error::ConflictingConstraints {
+                    message: format!(
+                        "dependentRequired needs {missing:?}, which would exceed maxProperties \
+                         ({max_props})"
+                    ),
+                });
+            }
+            for dep in missing {
+                let value =
+                    generate_property_value(&child_ctx, properties, &extra_values, dep, rng)?;
+                result.insert(dep.to_string(), value);
+            }
         }
     }
 
     Ok(Value::Object(result))
+}
+
+/// Generate a value for a property that must be present: from its declared
+/// schema when it has one, otherwise from `additionalProperties`.
+fn generate_property_value(
+    ctx: &Context,
+    properties: Option<&Map<String, Value>>,
+    extra_values: &ExtraValues,
+    name: &str,
+    rng: &mut impl Rng,
+) -> Result<Value, Error> {
+    match properties.and_then(|props| props.get(name)) {
+        Some(prop_schema) => generate_value(ctx, prop_schema, rng),
+        None => match extra_values {
+            ExtraValues::Schema(schema) => generate_value(ctx, schema, rng),
+            ExtraValues::Any => Ok(generate_random_simple(rng)),
+            ExtraValues::Forbidden => Err(Error::ConflictingConstraints {
+                message: format!(
+                    "property `{name}` must be present but is not declared in properties and \
+                     additionalProperties is false"
+                ),
+            }),
+        },
+    }
+}
+
+/// The transitive `dependentRequired` closure that selecting `candidate`
+/// would pull in: dependents (of the candidate, and of each other) that are
+/// not already present.
+fn missing_dependents<'a>(
+    dependent_required: Option<&'a Map<String, Value>>,
+    candidate: &str,
+    present: &Map<String, Value>,
+) -> Vec<&'a str> {
+    let Some(deps_map) = dependent_required else {
+        return Vec::new();
+    };
+    let mut needed: Vec<&'a str> = Vec::new();
+    let mut pending = vec![candidate];
+    while let Some(name) = pending.pop() {
+        let Some(Value::Array(deps)) = deps_map.get(name) else {
+            continue;
+        };
+        for dep in deps.iter().filter_map(Value::as_str) {
+            if dep != candidate && !present.contains_key(dep) && !needed.contains(&dep) {
+                needed.push(dep);
+                pending.push(dep);
+            }
+        }
+    }
+    needed
 }
 
 /// Attempts per synthesized property before concluding the name space is

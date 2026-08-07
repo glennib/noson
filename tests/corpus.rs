@@ -34,9 +34,7 @@ const MAX_EXAMPLES: usize = 3;
 ///
 /// When a file goes green, `expected_failures_still_fail` names it and the
 /// fix is to delete its line here.
-const EXPECTED_FAILURES: &[&str] = &[
-    "10-publish_window", // dependentRequired
-];
+const EXPECTED_FAILURES: &[&str] = &[];
 
 struct FailureExample {
     seed: u64,
