@@ -34,6 +34,11 @@
 //! - **Constraints**: `minimum`/`maximum`,
 //!   `exclusiveMinimum`/`exclusiveMaximum`, `minLength`/`maxLength`,
 //!   `minItems`/`maxItems`
+//! - **Pattern**: `pattern` — a random string is generated from the regex.
+//!   `pattern` takes precedence over `format`, and `minLength`/`maxLength` are
+//!   ignored when it applies. Patterns the generator cannot handle (invalid
+//!   regexes, classes matching nothing) silently fall back to unconstrained
+//!   string generation, so the result may not satisfy the pattern.
 //! - **Format**: `date-time`, `date`, `time`, `duration`
 //! - **Enum / Const**: `enum`, `const`
 //! - **Composition**: `allOf`, `anyOf`, `oneOf`
@@ -46,7 +51,7 @@
 //! using them will either be silently ignored (the keyword has no effect on
 //! generation) or, in the case of external `$ref`, return an error.
 //!
-//! - **String**: `pattern`, `contentEncoding`, `contentMediaType`
+//! - **String**: `contentEncoding`, `contentMediaType`
 //! - **Numeric**: `multipleOf`
 //! - **Object**: `additionalProperties`, `patternProperties`, `propertyNames`,
 //!   `minProperties`, `maxProperties`, `unevaluatedProperties`
@@ -59,6 +64,7 @@
 
 mod error;
 mod generate;
+mod xeger;
 
 pub use error::Error;
 pub use generate::generate;
@@ -821,6 +827,121 @@ mod tests {
             &json!({"type": "string", "format": "date-time"}),
             &result
         ));
+    }
+
+    // ── Pattern ──
+
+    #[test]
+    fn test_string_pattern_literal() {
+        let schema = json!({"type": "string", "pattern": "^abc$"});
+        generate_and_validate(&schema);
+    }
+
+    #[test]
+    fn test_string_pattern_unanchored() {
+        // A full match trivially satisfies `pattern`'s unanchored search.
+        let schema = json!({"type": "string", "pattern": "foo"});
+        generate_and_validate_n(&schema, 20);
+    }
+
+    #[test]
+    fn test_string_pattern_date_like() {
+        let schema = json!({"type": "string", "pattern": r"^\d{4}-\d{2}-\d{2}$"});
+        generate_and_validate_n(&schema, 50);
+    }
+
+    #[test]
+    fn test_string_pattern_alternation() {
+        let schema = json!({"type": "string", "pattern": "^(red|green|blue)$"});
+        generate_and_validate_n(&schema, 20);
+    }
+
+    #[test]
+    fn test_string_pattern_char_class() {
+        let schema = json!({"type": "string", "pattern": "^[a-f0-9]{8}$"});
+        generate_and_validate_n(&schema, 20);
+    }
+
+    #[test]
+    fn test_string_pattern_negated_class() {
+        let schema = json!({"type": "string", "pattern": "^[^0-9]{3}$"});
+        generate_and_validate_n(&schema, 20);
+    }
+
+    #[test]
+    fn test_string_pattern_perl_classes() {
+        let schema = json!({"type": "string", "pattern": r"^\w+\s\d+$"});
+        generate_and_validate_n(&schema, 20);
+    }
+
+    #[test]
+    fn test_string_pattern_case_insensitive() {
+        let schema = json!({"type": "string", "pattern": "(?i)^abc$"});
+        generate_and_validate_n(&schema, 20);
+    }
+
+    #[test]
+    fn test_string_pattern_repetition_operators() {
+        let schema = json!({"type": "string", "pattern": "^a+b*c?$"});
+        generate_and_validate_n(&schema, 20);
+    }
+
+    #[test]
+    fn test_string_pattern_bounded_repetition() {
+        let schema = json!({"type": "string", "pattern": "^[ab]{2,5}$"});
+        generate_and_validate_n(&schema, 20);
+    }
+
+    #[test]
+    fn test_string_pattern_unicode_class() {
+        let schema = json!({"type": "string", "pattern": r"^\p{L}{3}$"});
+        generate_and_validate_n(&schema, 20);
+    }
+
+    #[test]
+    fn test_string_pattern_beats_format() {
+        let schema = json!({"type": "string", "pattern": r"^\d{3}$", "format": "date"});
+        generate_and_validate(&schema);
+        let mut rng = seeded_rng();
+        let result = generate(&schema, &mut rng).expect("generation should succeed");
+        let s = result.as_str().unwrap();
+        assert_eq!(s.chars().count(), 3, "pattern should win over format: {s}");
+        assert!(
+            s.chars().all(|c| c.is_ascii_digit()),
+            "pattern should win over format: {s}"
+        );
+    }
+
+    #[test]
+    fn test_string_pattern_ignores_length_constraints() {
+        // Documented precedence: when pattern generation succeeds,
+        // minLength/maxLength are ignored (so this value legitimately
+        // violates minLength and the validation oracle is not used).
+        let schema = json!({"type": "string", "pattern": "^ab$", "minLength": 10});
+        let mut rng = seeded_rng();
+        let result = generate(&schema, &mut rng).expect("generation should succeed");
+        assert_eq!(result.as_str().unwrap(), "ab");
+    }
+
+    #[test]
+    fn test_string_pattern_invalid_regex_falls_back() {
+        // jsonschema cannot compile this schema, so no validation oracle;
+        // generation should fall back to an unconstrained string.
+        let schema = json!({"type": "string", "pattern": "(unclosed"});
+        let mut rng = seeded_rng();
+        let result = generate(&schema, &mut rng);
+        assert!(result.is_ok(), "invalid pattern should not error");
+        assert!(result.unwrap().is_string());
+    }
+
+    #[test]
+    fn test_string_pattern_determinism() {
+        let schema = json!({"type": "string", "pattern": r"^[a-z]{5}-\d{3}$"});
+        let mut rng_a = seeded_rng();
+        let mut rng_b = seeded_rng();
+        let a = generate(&schema, &mut rng_a).expect("generation should succeed");
+        let b = generate(&schema, &mut rng_b).expect("generation should succeed");
+        assert_eq!(a, b);
     }
 
     // ── Integration (bulk validation) ──

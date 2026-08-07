@@ -915,6 +915,8 @@ dependencies = [
  "jiff",
  "jsonschema",
  "rand",
+ "regex",
+ "regex-syntax",
  "serde_json",
  "thiserror",
 ]

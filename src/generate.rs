@@ -4,6 +4,7 @@ use serde_json::Map;
 use serde_json::Value;
 
 use crate::error::Error;
+use crate::xeger;
 
 struct Context<'a> {
     root: &'a Value,
@@ -157,6 +158,17 @@ fn random_alphanumeric_string(rng: &mut impl Rng, len: usize) -> String {
 }
 
 fn generate_string(obj: &Map<String, Value>, rng: &mut impl Rng) -> Result<Value, Error> {
+    // `pattern` is an assertion keyword, so it takes precedence over
+    // `format` (annotation-only by default). When pattern generation
+    // succeeds, `minLength`/`maxLength` are ignored (same precedent as
+    // `format`). Unsupported patterns fall through to unconstrained
+    // generation.
+    if let Some(Value::String(pattern)) = obj.get("pattern")
+        && let Some(s) = xeger::generate_matching(pattern, rng)
+    {
+        return Ok(Value::String(s));
+    }
+
     if let Some(Value::String(format)) = obj.get("format")
         && let Some(value) = generate_formatted_string(format, rng)?
     {
