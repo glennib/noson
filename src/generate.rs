@@ -230,76 +230,36 @@ fn generate_duration(rng: &mut impl Rng) -> Result<Value, Error> {
         return Ok(Value::String(format!("P{weeks}W")));
     }
 
-    // Mixed duration: randomly include components, ensuring at least one is present
-    loop {
-        let years = if rng.random_bool(0.3) {
-            Some(rng.random_range(0..=10u32))
-        } else {
-            None
-        };
-        let months = if rng.random_bool(0.3) {
-            Some(rng.random_range(0..=11u32))
-        } else {
-            None
-        };
-        let days = if rng.random_bool(0.3) {
-            Some(rng.random_range(0..=30u32))
-        } else {
-            None
-        };
-        let hours = if rng.random_bool(0.3) {
-            Some(rng.random_range(0..=23u32))
-        } else {
-            None
-        };
-        let minutes = if rng.random_bool(0.3) {
-            Some(rng.random_range(0..=59u32))
-        } else {
-            None
-        };
-        let seconds = if rng.random_bool(0.3) {
-            Some(rng.random_range(0..=59u32))
-        } else {
-            None
-        };
+    // The RFC 3339 appendix A grammar chains duration units without gaps:
+    // the date part must be one of Y, YM, YMD, M, MD, D and the time part one
+    // of H, HM, HMS, M, MS, S. Emitting each part as a contiguous run of
+    // units makes the output valid by construction.
+    const DATE_UNITS: [(char, u32); 3] = [('Y', 10), ('M', 11), ('D', 30)];
+    const TIME_UNITS: [(char, u32); 3] = [('H', 23), ('M', 59), ('S', 59)];
 
-        let has_any = years.is_some()
-            || months.is_some()
-            || days.is_some()
-            || hours.is_some()
-            || minutes.is_some()
-            || seconds.is_some();
-        if !has_any {
-            continue;
+    fn push_run(s: &mut String, units: &[(char, u32)], rng: &mut impl Rng) {
+        let start = rng.random_range(0..units.len());
+        let len = rng.random_range(1..=units.len() - start);
+        for &(unit, max) in &units[start..start + len] {
+            let value = rng.random_range(0..=max);
+            s.push_str(&format!("{value}{unit}"));
         }
-
-        let mut s = String::from("P");
-        if let Some(y) = years {
-            s.push_str(&format!("{y}Y"));
-        }
-        if let Some(m) = months {
-            s.push_str(&format!("{m}M"));
-        }
-        if let Some(d) = days {
-            s.push_str(&format!("{d}D"));
-        }
-
-        let has_time = hours.is_some() || minutes.is_some() || seconds.is_some();
-        if has_time {
-            s.push('T');
-            if let Some(h) = hours {
-                s.push_str(&format!("{h}H"));
-            }
-            if let Some(min) = minutes {
-                s.push_str(&format!("{min}M"));
-            }
-            if let Some(sec) = seconds {
-                s.push_str(&format!("{sec}S"));
-            }
-        }
-
-        return Ok(Value::String(s));
     }
+
+    let mut s = String::from("P");
+    match rng.random_range(0..3u8) {
+        0 => push_run(&mut s, &DATE_UNITS, rng),
+        1 => {
+            s.push('T');
+            push_run(&mut s, &TIME_UNITS, rng);
+        }
+        _ => {
+            push_run(&mut s, &DATE_UNITS, rng);
+            s.push('T');
+            push_run(&mut s, &TIME_UNITS, rng);
+        }
+    }
+    Ok(Value::String(s))
 }
 
 fn generate_integer(obj: &Map<String, Value>, rng: &mut impl Rng) -> Result<Value, Error> {
