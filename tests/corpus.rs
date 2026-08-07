@@ -35,17 +35,14 @@ const MAX_EXAMPLES: usize = 3;
 /// When a file goes green, `expected_failures_still_fail` names it and the
 /// fix is to delete its line here.
 const EXPECTED_FAILURES: &[&str] = &[
-    "00-emotions",         // maxProperties vs per-property coin flips
-    "03-topic_tags",       // uniqueItems
-    "05-price_ore",        // multipleOf
-    "09-geo_point",        // prefixItems
-    "10-publish_window",   // dependentRequired
-    "13-content_warnings", // uniqueItems
-    "14-ab_variants",      // additionalProperties as schema + minProperties
-    "23-locale",           // pattern ignores maxLength
-    "30-emotions",         // maxProperties
-    "32-topic_tags",       // uniqueItems
-    "35-geo_point",        // prefixItems
+    "00-emotions",       // maxProperties vs per-property coin flips
+    "05-price_ore",      // multipleOf
+    "09-geo_point",      // prefixItems
+    "10-publish_window", // dependentRequired
+    "14-ab_variants",    // additionalProperties as schema + minProperties
+    "23-locale",         // pattern ignores maxLength
+    "30-emotions",       // maxProperties
+    "35-geo_point",      // prefixItems
 ];
 
 struct FailureExample {

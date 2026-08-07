@@ -513,11 +513,59 @@ fn generate_array(
 
     let item_schema = obj.get("items").cloned().unwrap_or(Value::Bool(true));
 
+    if obj
+        .get("uniqueItems")
+        .and_then(Value::as_bool)
+        .unwrap_or(false)
+    {
+        return generate_unique_array(&child_ctx, &item_schema, min_items, count, rng);
+    }
+
     let mut items = Vec::with_capacity(count);
     for _ in 0..count {
         items.push(generate_value(&child_ctx, &item_schema, rng)?);
     }
 
+    Ok(Value::Array(items))
+}
+
+/// Attempts per array slot before concluding the item space is exhausted.
+const UNIQUE_ITEM_RETRIES: usize = 16;
+
+/// Generate `count` distinct items, retrying each slot on collision.
+/// When a slot cannot be filled, any length at or above `min_items` is
+/// still valid, so the array is returned short; below `min_items` the
+/// constraints are unsatisfiable.
+fn generate_unique_array(
+    ctx: &Context,
+    item_schema: &Value,
+    min_items: usize,
+    count: usize,
+    rng: &mut impl Rng,
+) -> Result<Value, Error> {
+    let mut items: Vec<Value> = Vec::with_capacity(count);
+    while items.len() < count {
+        let mut filled = false;
+        for _ in 0..UNIQUE_ITEM_RETRIES {
+            let candidate = generate_value(ctx, item_schema, rng)?;
+            if !items.contains(&candidate) {
+                items.push(candidate);
+                filled = true;
+                break;
+            }
+        }
+        if !filled {
+            if items.len() >= min_items {
+                break;
+            }
+            return Err(Error::ConflictingConstraints {
+                message: format!(
+                    "uniqueItems: found only {} distinct items, minItems is {min_items}",
+                    items.len()
+                ),
+            });
+        }
+    }
     Ok(Value::Array(items))
 }
 

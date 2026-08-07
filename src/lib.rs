@@ -36,6 +36,10 @@
 //! - **Constraints**: `minimum`/`maximum`,
 //!   `exclusiveMinimum`/`exclusiveMaximum`, `minLength`/`maxLength`,
 //!   `minItems`/`maxItems`
+//! - **Array uniqueness**: `uniqueItems` — collisions are retried a bounded
+//!   number of times per slot; when the item space is exhausted the array is
+//!   returned short (never below `minItems`), and an error is returned when
+//!   `minItems` distinct items cannot be found
 //! - **Pattern**: `pattern` — a random string is generated from the regex.
 //!   `pattern` takes precedence over `format`, and `minLength`/`maxLength` are
 //!   ignored when it applies. Patterns the generator cannot handle (invalid
@@ -62,7 +66,7 @@
 //! - **Object**: `additionalProperties`, `patternProperties`, `propertyNames`,
 //!   `minProperties`, `maxProperties`, `unevaluatedProperties`
 //! - **Array**: `prefixItems`, `additionalItems`, `contains`, `minContains`,
-//!   `maxContains`, `uniqueItems`, `unevaluatedItems`
+//!   `maxContains`, `unevaluatedItems`
 //! - **Composition**: `not`, `if`/`then`/`else`
 //! - **Dependencies**: `dependentRequired`, `dependentSchemas`
 //! - **References**: external `$ref` (http/file URIs), `$dynamicRef`, `$anchor`
@@ -400,6 +404,89 @@ mod tests {
             "maxItems": 3
         });
         generate_and_validate_n(&schema, 20);
+    }
+
+    #[test]
+    fn test_array_unique_items_enum() {
+        let schema = json!({
+            "type": "array",
+            "items": {
+                "type": "string",
+                "enum": ["violence", "drugs", "suicide", "sexual-content", "spoilers"]
+            },
+            "minItems": 1,
+            "uniqueItems": true
+        });
+        generate_and_validate_n(&schema, 100);
+    }
+
+    #[test]
+    fn test_array_unique_items_settles_short_when_space_is_small() {
+        // Only two distinct items exist; maxItems asks for up to five. The
+        // array must come back short rather than duplicated, and minItems: 1
+        // is always reachable.
+        let schema = json!({
+            "type": "array",
+            "items": {"enum": ["a", "b"]},
+            "minItems": 1,
+            "maxItems": 5,
+            "uniqueItems": true
+        });
+        let mut rng = seeded_rng();
+        for i in 0..100 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                jsonschema::is_valid(&schema, &result),
+                "sample {i} does not validate.\nvalue: {result}"
+            );
+            assert!(result.as_array().unwrap().len() <= 2);
+        }
+    }
+
+    #[test]
+    fn test_array_unique_items_min_items_unreachable_returns_error() {
+        let schema = json!({
+            "type": "array",
+            "items": {"enum": ["a", "b"]},
+            "minItems": 3,
+            "uniqueItems": true
+        });
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_array_unique_items_const_returns_error() {
+        let schema = json!({
+            "type": "array",
+            "items": {"const": 7},
+            "minItems": 2,
+            "uniqueItems": true
+        });
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_array_unique_items_false_allows_duplicates() {
+        let schema = json!({
+            "type": "array",
+            "items": {"const": 7},
+            "minItems": 2,
+            "maxItems": 2,
+            "uniqueItems": false
+        });
+        let mut rng = seeded_rng();
+        let result = generate(&schema, &mut rng).expect("generation should succeed");
+        assert_eq!(result, json!([7, 7]));
     }
 
     // ── Composition ──
