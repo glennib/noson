@@ -19,10 +19,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
 
+      - name: Install nightly Rust toolchain (rustfmt only)
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+
+      # Installed last so stable stays the default toolchain; fmt selects
+      # nightly explicitly via `cargo +nightly fmt`.
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy, rustfmt
+          components: clippy
 
       - name: Cache mise
         uses: actions/cache@v6

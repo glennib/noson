@@ -3,18 +3,10 @@
 
 [tasks.fmt]
 description = "Format code"
-run = "cargo fmt --all"
+run = "cargo +nightly fmt --all"
 
 [tasks."fmt:check"]
 description = "Check code formatting"
-run = "cargo fmt --all -- --check"
-
-[tasks."fmt:nightly"]
-description = "Format code with nightly"
-run = "cargo +nightly fmt --all"
-
-[tasks."fmt:check:nightly"]
-description = "Check code formatting with nightly"
 run = "cargo +nightly fmt --all -- --check"
 
 [tasks.clippy]
