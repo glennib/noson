@@ -39,24 +39,24 @@
 //! - **Multiples**: `multipleOf` — a random multiple within the bounds,
 //!   erroring when the range contains none
 //! - **Tuples**: `prefixItems` — the first slots are generated positionally
-//!   from the prefix schemas, later slots from `items`; `items: false` caps
-//!   the length at the tuple size. The generated count covers the full tuple
+//!   from the prefix schemas, later slots from `items`; `items: false` caps the
+//!   length at the tuple size. The generated count covers the full tuple
 //!   whenever `minItems`/`maxItems` allow
 //! - **Array uniqueness**: `uniqueItems` — collisions are retried a bounded
 //!   number of times per slot; when the item space is exhausted the array is
 //!   returned short (never below `minItems`), and an error is returned when
 //!   `minItems` distinct items cannot be found
-//! - **Object sizing**: `minProperties`/`maxProperties` — property selection
-//!   is count-aware: all required properties plus a random number of optional
-//!   ones within the allowed range. When the declared properties cannot reach
+//! - **Object sizing**: `minProperties`/`maxProperties` — property selection is
+//!   count-aware: all required properties plus a random number of optional ones
+//!   within the allowed range. When the declared properties cannot reach
 //!   `minProperties`, extra entries are synthesized: names come from a
 //!   `patternProperties` regex, the `propertyNames` schema, or fall back to
 //!   random strings; values come from the matching `patternProperties` schema
 //!   or `additionalProperties` (when it is a schema)
-//! - **Dependencies**: `dependentRequired` — required properties pull in
-//!   their transitive dependents; selecting an optional property pulls in its
-//!   missing dependents too, and candidates whose dependents cannot fit
-//!   within `maxProperties` are skipped
+//! - **Dependencies**: `dependentRequired` — required properties pull in their
+//!   transitive dependents; selecting an optional property pulls in its missing
+//!   dependents too, and candidates whose dependents cannot fit within
+//!   `maxProperties` are skipped
 //! - **Pattern**: `pattern` — a random string is generated from the regex.
 //!   `pattern` takes precedence over `format`. Samples are redrawn until one
 //!   also satisfies `minLength`/`maxLength`; when no sample fits after a
@@ -82,8 +82,8 @@
 //!
 //! - **String**: `contentEncoding`, `contentMediaType`
 //! - **Object**: `unevaluatedProperties`; `patternProperties` and
-//!   `propertyNames` are only consulted when synthesizing extra entries —
-//!   they are not enforced on declared `properties`
+//!   `propertyNames` are only consulted when synthesizing extra entries — they
+//!   are not enforced on declared `properties`
 //! - **Array**: `additionalItems`, `contains`, `minContains`, `maxContains`,
 //!   `unevaluatedItems`
 //! - **Composition**: `not`, `if`/`then`/`else`

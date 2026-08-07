@@ -203,8 +203,8 @@ fn generate_string(obj: &Map<String, Value>, rng: &mut impl Rng) -> Result<Value
         if pattern_supported {
             return Err(Error::ConflictingConstraints {
                 message: format!(
-                    "no string matching pattern `{pattern}` satisfied \
-                     minLength/maxLength in {PATTERN_LENGTH_RETRIES} attempts"
+                    "no string matching pattern `{pattern}` satisfied minLength/maxLength in \
+                     {PATTERN_LENGTH_RETRIES} attempts"
                 ),
             });
         }
@@ -593,8 +593,8 @@ fn generate_object(
                 if !is_string_array {
                     return Err(Error::InvalidSchema {
                         message: format!(
-                            "dependentRequired entries must be arrays of strings, got {deps} \
-                             for `{name}`"
+                            "dependentRequired entries must be arrays of strings, got {deps} for \
+                             `{name}`"
                         ),
                     });
                 }
@@ -686,8 +686,8 @@ fn generate_object(
     } else {
         return Err(Error::ConflictingConstraints {
             message: format!(
-                "minProperties ({min_props}) exceeds the {declared_total} declared properties \
-                 and no additionalProperties/patternProperties schema allows more"
+                "minProperties ({min_props}) exceeds the {declared_total} declared properties and \
+                 no additionalProperties/patternProperties schema allows more"
             ),
         });
     };
