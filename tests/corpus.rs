@@ -38,17 +38,13 @@ const EXPECTED_FAILURES: &[&str] = &[
     "00-emotions",         // maxProperties vs per-property coin flips
     "03-topic_tags",       // uniqueItems
     "05-price_ore",        // multipleOf
-    "07-teaser_media",     // format: uri (inside oneOf branches)
     "09-geo_point",        // prefixItems
     "10-publish_window",   // dependentRequired
     "13-content_warnings", // uniqueItems
     "14-ab_variants",      // additionalProperties as schema + minProperties
     "23-locale",           // pattern ignores maxLength
-    "26-contact_email",    // format: email
-    "28-story_uuid",       // format: uuid
     "30-emotions",         // maxProperties
     "32-topic_tags",       // uniqueItems
-    "34-teaser_media",     // format: uri (inside oneOf branches)
     "35-geo_point",        // prefixItems
 ];
 

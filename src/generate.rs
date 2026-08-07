@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use rand::Rng;
 use rand::RngExt;
 use serde_json::Map;
@@ -202,8 +204,91 @@ fn generate_formatted_string(format: &str, rng: &mut impl Rng) -> Result<Option<
         "date" => generate_date(rng).map(Some),
         "time" => generate_time(rng).map(Some),
         "duration" => generate_duration(rng).map(Some),
+        "uuid" => Ok(Some(generate_uuid(rng))),
+        "email" => Ok(Some(generate_email(rng))),
+        "uri" => Ok(Some(generate_uri(rng))),
+        "hostname" => Ok(Some(Value::String(generate_hostname(rng)))),
+        "ipv4" => Ok(Some(generate_ipv4(rng))),
+        "ipv6" => Ok(Some(generate_ipv6(rng))),
         _ => Ok(None),
     }
+}
+
+/// A random version-4 UUID. Bytes come from the caller's RNG (not
+/// `Uuid::new_v4`, which draws OS entropy) so output stays reproducible
+/// under a seeded generator.
+fn generate_uuid(rng: &mut impl Rng) -> Value {
+    let uuid = uuid::Builder::from_random_bytes(rng.random()).into_uuid();
+    Value::String(uuid.to_string())
+}
+
+/// A random lowercase alphanumeric label starting with a letter — safe as a
+/// hostname label, email local part, or URI path segment.
+fn random_label(rng: &mut impl Rng, max_len: usize) -> String {
+    const LETTERS: &[u8] = b"abcdefghijklmnopqrstuvwxyz";
+    const ALPHANUMERIC: &[u8] = b"abcdefghijklmnopqrstuvwxyz0123456789";
+    let len = rng.random_range(1..=max_len);
+    let mut s = String::with_capacity(len);
+    s.push(LETTERS[rng.random_range(0..LETTERS.len())] as char);
+    for _ in 1..len {
+        s.push(ALPHANUMERIC[rng.random_range(0..ALPHANUMERIC.len())] as char);
+    }
+    s
+}
+
+fn generate_hostname(rng: &mut impl Rng) -> String {
+    let labels = rng.random_range(1..=3usize);
+    let mut s = String::new();
+    for i in 0..labels {
+        if i > 0 {
+            s.push('.');
+        }
+        s.push_str(&random_label(rng, 10));
+    }
+    s
+}
+
+fn generate_email(rng: &mut impl Rng) -> Value {
+    let local = random_label(rng, 10);
+    let domain = generate_hostname(rng);
+    Value::String(format!("{local}@{domain}"))
+}
+
+fn generate_uri(rng: &mut impl Rng) -> Value {
+    let scheme = if rng.random_bool(0.5) {
+        "https"
+    } else {
+        "http"
+    };
+    let host = generate_hostname(rng);
+    let mut uri = format!("{scheme}://{host}");
+    for _ in 0..rng.random_range(0..=2usize) {
+        uri.push('/');
+        uri.push_str(&random_label(rng, 8));
+    }
+    Value::String(uri)
+}
+
+fn generate_ipv4(rng: &mut impl Rng) -> Value {
+    let octets: [u8; 4] = rng.random();
+    Value::String(format!(
+        "{}.{}.{}.{}",
+        octets[0], octets[1], octets[2], octets[3]
+    ))
+}
+
+/// A random IPv6 address in full uncompressed form (eight groups), which
+/// sidesteps the `::` compression rules.
+fn generate_ipv6(rng: &mut impl Rng) -> Value {
+    let groups: [u16; 8] = rng.random();
+    let mut s = String::new();
+    for (i, group) in groups.iter().enumerate() {
+        if i > 0 {
+            s.push(':');
+        }
+        let _ = write!(s, "{group:x}");
+    }
+    Value::String(s)
 }
 
 fn generate_date_time(rng: &mut impl Rng) -> Result<Value, Error> {

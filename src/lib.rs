@@ -41,7 +41,8 @@
 //!   ignored when it applies. Patterns the generator cannot handle (invalid
 //!   regexes, classes matching nothing) silently fall back to unconstrained
 //!   string generation, so the result may not satisfy the pattern.
-//! - **Format**: `date-time`, `date`, `time`, `duration`
+//! - **Format**: `date-time`, `date`, `time`, `duration`, `uuid`, `email`,
+//!   `uri`, `hostname`, `ipv4`, `ipv6`
 //! - **Enum / Const**: `enum`, `const`
 //! - **Composition**: `allOf`, `anyOf`, `oneOf` — combined conjunctively with
 //!   sibling keywords: a random `anyOf`/`oneOf` branch is merged with the rest
@@ -1068,6 +1069,104 @@ mod tests {
             let s = result.as_str().unwrap();
             assert!(s.starts_with('P'), "duration should start with P: {s}");
             assert!(s.len() > 1, "duration should have components after P: {s}");
+        }
+    }
+
+    #[test]
+    fn test_string_format_uuid() {
+        let schema = json!({"type": "string", "format": "uuid"});
+        let mut rng = seeded_rng();
+        for i in 0..100 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                validate_with_formats(&schema, &result),
+                "sample {i} does not validate as uuid.\nvalue: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_string_format_uuid_structure() {
+        let schema = json!({"type": "string", "format": "uuid"});
+        let mut rng = seeded_rng();
+        for _ in 0..100 {
+            let result = generate(&schema, &mut rng).unwrap();
+            let s = result.as_str().unwrap();
+            let groups: Vec<&str> = s.split('-').collect();
+            assert_eq!(groups.len(), 5, "should have 5 groups: {s}");
+            let lens: Vec<usize> = groups.iter().map(|g| g.len()).collect();
+            assert_eq!(lens, [8, 4, 4, 4, 12], "group lengths: {s}");
+            assert!(s.starts_with(|c: char| c.is_ascii_hexdigit()));
+            assert_eq!(&groups[2][..1], "4", "should be version 4: {s}");
+            assert!(
+                "89ab".contains(&groups[3][..1]),
+                "variant bits should be 10xx: {s}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_string_format_email() {
+        let schema = json!({"type": "string", "format": "email"});
+        let mut rng = seeded_rng();
+        for i in 0..100 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                validate_with_formats(&schema, &result),
+                "sample {i} does not validate as email.\nvalue: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_string_format_uri() {
+        let schema = json!({"type": "string", "format": "uri"});
+        let mut rng = seeded_rng();
+        for i in 0..100 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                validate_with_formats(&schema, &result),
+                "sample {i} does not validate as uri.\nvalue: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_string_format_hostname() {
+        let schema = json!({"type": "string", "format": "hostname"});
+        let mut rng = seeded_rng();
+        for i in 0..100 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                validate_with_formats(&schema, &result),
+                "sample {i} does not validate as hostname.\nvalue: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_string_format_ipv4() {
+        let schema = json!({"type": "string", "format": "ipv4"});
+        let mut rng = seeded_rng();
+        for i in 0..100 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                validate_with_formats(&schema, &result),
+                "sample {i} does not validate as ipv4.\nvalue: {result}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_string_format_ipv6() {
+        let schema = json!({"type": "string", "format": "ipv6"});
+        let mut rng = seeded_rng();
+        for i in 0..100 {
+            let result = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                validate_with_formats(&schema, &result),
+                "sample {i} does not validate as ipv6.\nvalue: {result}"
+            );
         }
     }
 
