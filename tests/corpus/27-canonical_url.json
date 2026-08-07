@@ -16,59 +16,10 @@
     "pattern"
   ],
   "evaluation": {
-    "samples": 100,
+    "samples": 1000,
     "generation_errors": 0,
-    "invalid_samples": 100,
+    "invalid_samples": 0,
     "generation_error_examples": [],
-    "invalid_examples": [
-      {
-        "seed": 0,
-        "value": "ujxzBql3",
-        "errors": [
-          {
-            "message": "\"ujxzBql3\" does not match \"^https://\"",
-            "instance_path": "",
-            "schema_path": "/pattern"
-          },
-          {
-            "message": "\"ujxzBql3\" is not a \"uri\"",
-            "instance_path": "",
-            "schema_path": "/format"
-          }
-        ]
-      },
-      {
-        "seed": 1,
-        "value": "zsMbNLxQh",
-        "errors": [
-          {
-            "message": "\"zsMbNLxQh\" does not match \"^https://\"",
-            "instance_path": "",
-            "schema_path": "/pattern"
-          },
-          {
-            "message": "\"zsMbNLxQh\" is not a \"uri\"",
-            "instance_path": "",
-            "schema_path": "/format"
-          }
-        ]
-      },
-      {
-        "seed": 2,
-        "value": "",
-        "errors": [
-          {
-            "message": "\"\" does not match \"^https://\"",
-            "instance_path": "",
-            "schema_path": "/pattern"
-          },
-          {
-            "message": "\"\" is not a \"uri\"",
-            "instance_path": "",
-            "schema_path": "/format"
-          }
-        ]
-      }
-    ]
+    "invalid_examples": []
   }
 }

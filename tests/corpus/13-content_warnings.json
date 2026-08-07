@@ -25,55 +25,10 @@
     "uniqueItems"
   ],
   "evaluation": {
-    "samples": 100,
+    "samples": 1000,
     "generation_errors": 0,
-    "invalid_samples": 27,
+    "invalid_samples": 0,
     "generation_error_examples": [],
-    "invalid_examples": [
-      {
-        "seed": 0,
-        "value": [
-          "sexual-content",
-          "suicide",
-          "sexual-content"
-        ],
-        "errors": [
-          {
-            "message": "[\"sexual-content\",\"suicide\",\"sexual-content\"] has non-unique elements",
-            "instance_path": "",
-            "schema_path": "/uniqueItems"
-          }
-        ]
-      },
-      {
-        "seed": 1,
-        "value": [
-          "spoilers",
-          "sexual-content",
-          "sexual-content"
-        ],
-        "errors": [
-          {
-            "message": "[\"spoilers\",\"sexual-content\",\"sexual-content\"] has non-unique elements",
-            "instance_path": "",
-            "schema_path": "/uniqueItems"
-          }
-        ]
-      },
-      {
-        "seed": 7,
-        "value": [
-          "violence",
-          "violence"
-        ],
-        "errors": [
-          {
-            "message": "[\"violence\",\"violence\"] has non-unique elements",
-            "instance_path": "",
-            "schema_path": "/uniqueItems"
-          }
-        ]
-      }
-    ]
+    "invalid_examples": []
   }
 }

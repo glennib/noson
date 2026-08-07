@@ -1,0 +1,119 @@
+{
+  "identifier": "gallery",
+  "scope_class": "global",
+  "description": "Photo gallery for the article",
+  "prompt": "A list of image objects (url, alt). At least one image must be marked as the cover (a boolean cover flag).",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema represents the gallery as an array of image objects. It uses the 'contains' constraint to ensure at least one item in the list is explicitly marked with 'cover: true'.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "contains": {
+      "properties": {
+        "cover": {
+          "const": true
+        }
+      },
+      "required": [
+        "cover"
+      ],
+      "type": "object"
+    },
+    "items": {
+      "properties": {
+        "alt": {
+          "description": "Alternative text describing the image for accessibility.",
+          "type": "string"
+        },
+        "cover": {
+          "description": "Set to true if this image is the cover photo for the gallery.",
+          "type": "boolean"
+        },
+        "url": {
+          "description": "The direct URL of the image.",
+          "format": "uri",
+          "type": "string"
+        }
+      },
+      "required": [
+        "url",
+        "alt"
+      ],
+      "type": "object"
+    },
+    "type": "array"
+  },
+  "suspected_gaps": [
+    "contains",
+    "format:uri"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 696,
+    "generation_error_examples": [],
+    "invalid_examples": [
+      {
+        "seed": 0,
+        "value": [
+          {
+            "alt": "",
+            "cover": false,
+            "url": "http://r.wje1ch.uw0t849k"
+          },
+          {
+            "alt": "T6YrYA0E2n",
+            "url": "https://lg79iou.ez4qhcs/trm525/b79fhp"
+          },
+          {
+            "alt": "5L4",
+            "cover": false,
+            "url": "http://r5d3.y.w1j5fd"
+          }
+        ],
+        "errors": [
+          {
+            "message": "None of [{\"alt\":\"\",\"cover\":false,\"url\":\"http://r.wje1ch.uw0t849k\"},{\"alt\":\"T6YrYA0E2n\",\"url\":\"https://lg79iou.ez4qhcs/trm525/b79fhp\"},{\"alt\":\"5L4\",\"cover\":false,\"url\":\"http://r5d3.y.w1j5fd\"}] are valid under the given schema",
+            "instance_path": "",
+            "schema_path": "/contains"
+          }
+        ]
+      },
+      {
+        "seed": 1,
+        "value": [
+          {
+            "alt": "bJMXJN5f",
+            "cover": false,
+            "url": "http://fg1js/k9zesfn/foc37"
+          },
+          {
+            "alt": "W6eD",
+            "url": "https://gi8w.ywbenj/ew"
+          },
+          {
+            "alt": "fAMtFQp",
+            "url": "http://hbo.hgcqhf4.wjhy2gv4/j/w5rvhb8"
+          }
+        ],
+        "errors": [
+          {
+            "message": "None of [{\"alt\":\"bJMXJN5f\",\"cover\":false,\"url\":\"http://fg1js/k9zesfn/foc37\"},{\"alt\":\"W6eD\",\"url\":\"https://gi8w.ywbenj/ew\"},{\"alt\":\"fAMtFQp\",\"url\":\"http://hbo.hgcqhf4.wjhy2gv4/j/w5rvhb8\"}] are valid under the given schema",
+            "instance_path": "",
+            "schema_path": "/contains"
+          }
+        ]
+      },
+      {
+        "seed": 2,
+        "value": [],
+        "errors": [
+          {
+            "message": "None of [] are valid under the given schema",
+            "instance_path": "",
+            "schema_path": "/contains"
+          }
+        ]
+      }
+    ]
+  }
+}

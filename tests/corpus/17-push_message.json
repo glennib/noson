@@ -56,7 +56,7 @@
     "then"
   ],
   "evaluation": {
-    "samples": 100,
+    "samples": 1000,
     "generation_errors": 0,
     "invalid_samples": 0,
     "generation_error_examples": [],

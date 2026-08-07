@@ -1,0 +1,48 @@
+{
+  "identifier": "emotions",
+  "scope_class": "global",
+  "description": "NLP-based classification of emotion for the content. Serves an object of at most three emotions with associated confidence or affinity. Each emotion is one of a set of standard emotions.",
+  "prompt": "NLP-based classification of emotion for the content. Serves an object of at most three emotions with associated confidence or affinity. Each emotion is one of a set of standard emotions.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema defines an object where keys are standard emotions mapped to numeric scores. It uses maxProperties to restrict the object to a maximum of three emotions.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "maxProperties": 3,
+    "properties": {
+      "anger": {
+        "type": "number"
+      },
+      "disgust": {
+        "type": "number"
+      },
+      "fear": {
+        "type": "number"
+      },
+      "joy": {
+        "type": "number"
+      },
+      "neutral": {
+        "type": "number"
+      },
+      "sadness": {
+        "type": "number"
+      },
+      "surprise": {
+        "type": "number"
+      }
+    },
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)",
+    "maxProperties"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

@@ -54,62 +54,10 @@
     "maxProperties"
   ],
   "evaluation": {
-    "samples": 100,
+    "samples": 1000,
     "generation_errors": 0,
-    "invalid_samples": 76,
+    "invalid_samples": 0,
     "generation_error_examples": [],
-    "invalid_examples": [
-      {
-        "seed": 0,
-        "value": {
-          "disgust": 58.41592619362002,
-          "fear": 77.19869057468208,
-          "joy": 79.37134566691361,
-          "trust": 11.286499980981791
-        },
-        "errors": [
-          {
-            "message": "{\"disgust\":58.41592619362002,\"fear\":77.19869057468208,\"joy\":79.37134566691361,\"trust\":11.286499980981791} has more than 3 properties",
-            "instance_path": "",
-            "schema_path": "/maxProperties"
-          }
-        ]
-      },
-      {
-        "seed": 1,
-        "value": {
-          "disgust": 17.55860501938433,
-          "fear": 96.2602779622632,
-          "joy": 70.8508336683134,
-          "sadness": 20.194173174448515,
-          "surprise": 93.56137124844082,
-          "trust": 19.42876663858799
-        },
-        "errors": [
-          {
-            "message": "{\"disgust\":17.55860501938433,\"fear\":96.2602779622632,\"joy\":70.8508336683134,\"sadness\":20.194173174448515,\"surprise\":93.56137124844082,\"trust\":19.42876663858799} has more than 3 properties",
-            "instance_path": "",
-            "schema_path": "/maxProperties"
-          }
-        ]
-      },
-      {
-        "seed": 2,
-        "value": {
-          "anger": 1.7547622770950344,
-          "anticipation": 49.577821337894655,
-          "disgust": 27.14623356430006,
-          "neutral": 28.25358620667253,
-          "surprise": 58.19466619495537
-        },
-        "errors": [
-          {
-            "message": "{\"anger\":1.7547622770950344,\"anticipation\":49.577821337894655,\"disgust\":27.14623356430006,\"neutral\":28.25358620667253,\"surprise\":58.19466619495537} has more than 3 properties",
-            "instance_path": "",
-            "schema_path": "/maxProperties"
-          }
-        ]
-      }
-    ]
+    "invalid_examples": []
   }
 }

@@ -28,63 +28,10 @@
     "prefixItems"
   ],
   "evaluation": {
-    "samples": 100,
+    "samples": 1000,
     "generation_errors": 0,
-    "invalid_samples": 92,
+    "invalid_samples": 0,
     "generation_error_examples": [],
-    "invalid_examples": [
-      {
-        "seed": 0,
-        "value": [
-          55,
-          "Bql3QHxEN"
-        ],
-        "errors": [
-          {
-            "message": "\"Bql3QHxEN\" is not of type \"number\"",
-            "instance_path": "/1",
-            "schema_path": "/prefixItems/1/type"
-          }
-        ]
-      },
-      {
-        "seed": 1,
-        "value": [
-          "sMbNLxQh",
-          "YtHhJYiM"
-        ],
-        "errors": [
-          {
-            "message": "\"sMbNLxQh\" is not of type \"number\"",
-            "instance_path": "/0",
-            "schema_path": "/prefixItems/0/type"
-          },
-          {
-            "message": "\"YtHhJYiM\" is not of type \"number\"",
-            "instance_path": "/1",
-            "schema_path": "/prefixItems/1/type"
-          }
-        ]
-      },
-      {
-        "seed": 2,
-        "value": [
-          true,
-          false
-        ],
-        "errors": [
-          {
-            "message": "true is not of type \"number\"",
-            "instance_path": "/0",
-            "schema_path": "/prefixItems/0/type"
-          },
-          {
-            "message": "false is not of type \"number\"",
-            "instance_path": "/1",
-            "schema_path": "/prefixItems/1/type"
-          }
-        ]
-      }
-    ]
+    "invalid_examples": []
   }
 }

@@ -1,0 +1,23 @@
+{
+  "identifier": "contact_email",
+  "scope_class": "site",
+  "description": "Tips contact email for the newsroom",
+  "prompt": "A single email address.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema uses a string type with the well-known 'email' format, which is fully supported by the Rust jsonschema validator to ensure a valid email address is provided.",
+  "schema": {
+    "description": "Tips contact email for the newsroom",
+    "format": "email",
+    "type": "string"
+  },
+  "suspected_gaps": [
+    "format:email"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

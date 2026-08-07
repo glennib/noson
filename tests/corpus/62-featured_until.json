@@ -1,0 +1,20 @@
+{
+  "identifier": "featured_until",
+  "scope_class": "site",
+  "description": "Featured on the front page until",
+  "prompt": "An RFC 3339 date-time.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema restricts the value to a string conforming to the standard RFC 3339 date-time format, which is fully supported by the rust jsonschema validator.",
+  "schema": {
+    "format": "date-time",
+    "type": "string"
+  },
+  "suspected_gaps": [],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

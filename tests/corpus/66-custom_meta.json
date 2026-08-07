@@ -1,0 +1,29 @@
+{
+  "identifier": "custom_meta",
+  "scope_class": "global",
+  "description": "Free-form metadata extensions",
+  "prompt": "An object where every key must start with the prefix x- and values are strings. No other keys are allowed.",
+  "model": "gemini-3.5-flash",
+  "notes": "This schema uses patternProperties to require all keys to start with the 'x-' prefix and have string values, while setting additionalProperties to false to disallow any other keys.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "patternProperties": {
+      "^x-": {
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)",
+    "patternProperties"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

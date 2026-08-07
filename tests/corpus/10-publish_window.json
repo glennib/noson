@@ -32,50 +32,10 @@
     "dependentRequired"
   ],
   "evaluation": {
-    "samples": 100,
+    "samples": 1000,
     "generation_errors": 0,
-    "invalid_samples": 23,
+    "invalid_samples": 0,
     "generation_error_examples": [],
-    "invalid_examples": [
-      {
-        "seed": 5,
-        "value": {
-          "end": "1993-01-17T10:49:39Z"
-        },
-        "errors": [
-          {
-            "message": "\"start\" is a required property",
-            "instance_path": "",
-            "schema_path": "/dependentRequired"
-          }
-        ]
-      },
-      {
-        "seed": 8,
-        "value": {
-          "end": "2092-10-19T23:37:27Z"
-        },
-        "errors": [
-          {
-            "message": "\"start\" is a required property",
-            "instance_path": "",
-            "schema_path": "/dependentRequired"
-          }
-        ]
-      },
-      {
-        "seed": 20,
-        "value": {
-          "end": "2074-01-22T19:46:32Z"
-        },
-        "errors": [
-          {
-            "message": "\"start\" is a required property",
-            "instance_path": "",
-            "schema_path": "/dependentRequired"
-          }
-        ]
-      }
-    ]
+    "invalid_examples": []
   }
 }

@@ -1,0 +1,30 @@
+{
+  "identifier": "display_name",
+  "scope_class": "site",
+  "description": "Display name override for listings",
+  "prompt": "A short non-empty string, but never the literal value \"unknown\" or \"untitled\".",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema guarantees a non-empty string up to 255 characters, and uses the 'not' keyword with 'enum' to reject forbidden placeholder values like 'unknown' and 'untitled'.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "maxLength": 255,
+    "minLength": 1,
+    "not": {
+      "enum": [
+        "unknown",
+        "untitled"
+      ]
+    },
+    "type": "string"
+  },
+  "suspected_gaps": [
+    "not"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

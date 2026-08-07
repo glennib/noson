@@ -1,0 +1,63 @@
+{
+  "identifier": "teaser_media",
+  "scope_class": "global",
+  "description": "Teaser media for front pages",
+  "prompt": "Either an image (kind, url, alt text) or a video (kind, url, duration in seconds). The kind field distinguishes the two.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema leverages a `oneOf` structure keyed on the `kind` property to distinguish between image and video payloads. It validates the URL format as a URI and ensures required fields are present while keeping the schema open for future extensions.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+      {
+        "properties": {
+          "alt": {
+            "description": "Alternative text for the image",
+            "type": "string"
+          },
+          "kind": {
+            "const": "image"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "url"
+        ]
+      },
+      {
+        "properties": {
+          "duration": {
+            "description": "Duration of the video in seconds",
+            "minimum": 0,
+            "type": "number"
+          },
+          "kind": {
+            "const": "video"
+          },
+          "url": {
+            "format": "uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "url"
+        ]
+      }
+    ],
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "format:uri"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

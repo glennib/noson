@@ -1,0 +1,41 @@
+{
+  "identifier": "comment_policy",
+  "scope_class": "site",
+  "description": "Commenting policy for the article",
+  "prompt": "closed, members-only or open; when closed, an optional reason string can be stored.",
+  "model": "gemini-3.5-flash",
+  "notes": "This schema defines an object with a required 'status' enum and an optional 'reason' string. This simple approach ensures robust validation and easy compatibility without overly complex conditional rules.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "properties": {
+      "reason": {
+        "description": "Optional reason for closing comments",
+        "type": "string"
+      },
+      "status": {
+        "description": "The comment policy status",
+        "enum": [
+          "closed",
+          "members-only",
+          "open"
+        ],
+        "type": "string"
+      }
+    },
+    "required": [
+      "status"
+    ],
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

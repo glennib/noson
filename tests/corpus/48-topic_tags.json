@@ -1,0 +1,31 @@
+{
+  "identifier": "topic_tags",
+  "scope_class": "global",
+  "description": "Editorial topic tags",
+  "prompt": "A list of short lowercase tags, no duplicates, at most 10.",
+  "model": "gemini-3.5-flash",
+  "notes": "This schema restricts the attribute to an array of up to 10 unique strings. Each string must be a lowercase tag containing only letters, numbers, hyphens, or underscores, with a length limit of 30 characters.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "maxLength": 30,
+      "minLength": 1,
+      "pattern": "^[a-z0-9_-]+$",
+      "type": "string"
+    },
+    "maxItems": 10,
+    "type": "array",
+    "uniqueItems": true
+  },
+  "suspected_gaps": [
+    "pattern",
+    "uniqueItems"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

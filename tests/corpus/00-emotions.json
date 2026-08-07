@@ -60,60 +60,10 @@
     "maxProperties"
   ],
   "evaluation": {
-    "samples": 100,
+    "samples": 1000,
     "generation_errors": 0,
-    "invalid_samples": 49,
+    "invalid_samples": 0,
     "generation_error_examples": [],
-    "invalid_examples": [
-      {
-        "seed": 1,
-        "value": {
-          "fear": 0.17558605019384332,
-          "joy": 0.962602779622632,
-          "neutral": 0.708508336683134,
-          "surprise": 0.20194173174448515
-        },
-        "errors": [
-          {
-            "message": "{\"fear\":0.17558605019384332,\"joy\":0.962602779622632,\"neutral\":0.708508336683134,\"surprise\":0.20194173174448515} has more than 3 properties",
-            "instance_path": "",
-            "schema_path": "/maxProperties"
-          }
-        ]
-      },
-      {
-        "seed": 2,
-        "value": {
-          "anger": 0.017547622770950344,
-          "disgust": 0.49577821337894656,
-          "fear": 0.2714623356430006,
-          "sadness": 0.2825358620667253
-        },
-        "errors": [
-          {
-            "message": "{\"anger\":0.017547622770950344,\"disgust\":0.49577821337894656,\"fear\":0.2714623356430006,\"sadness\":0.2825358620667253} has more than 3 properties",
-            "instance_path": "",
-            "schema_path": "/maxProperties"
-          }
-        ]
-      },
-      {
-        "seed": 3,
-        "value": {
-          "anger": 0.35248765884446853,
-          "disgust": 0.42649302554852264,
-          "fear": 0.40437645794642485,
-          "joy": 0.6425132125147417,
-          "neutral": 0.9622703479395289
-        },
-        "errors": [
-          {
-            "message": "{\"anger\":0.35248765884446853,\"disgust\":0.42649302554852264,\"fear\":0.40437645794642485,\"joy\":0.6425132125147417,\"neutral\":0.9622703479395289} has more than 3 properties",
-            "instance_path": "",
-            "schema_path": "/maxProperties"
-          }
-        ]
-      }
-    ]
+    "invalid_examples": []
   }
 }

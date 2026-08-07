@@ -1,0 +1,58 @@
+{
+  "identifier": "discount",
+  "scope_class": "site",
+  "description": "Active discount on the article's single purchase",
+  "prompt": "Either a fixed discount (then amount in øre and currency are required) or a percentage discount (then only a rate between 0 and 1 is allowed).",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema uses `oneOf` to enforce either a fixed-amount discount (requiring both an integer `amount` and a `currency` string) or a percentage discount (requiring a `rate` between 0 and 1). Setting `additionalProperties: false` within the subschemas ensures the two schemas remain mutually exclusive.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "amount": {
+            "description": "Discount amount in øre",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "currency": {
+            "description": "Currency of the discount",
+            "type": "string"
+          }
+        },
+        "required": [
+          "amount",
+          "currency"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "rate": {
+            "description": "Discount rate represented as a decimal between 0 and 1",
+            "maximum": 1,
+            "minimum": 0,
+            "type": "number"
+          }
+        },
+        "required": [
+          "rate"
+        ],
+        "type": "object"
+      }
+    ],
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

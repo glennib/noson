@@ -1,0 +1,28 @@
+{
+  "identifier": "embedding",
+  "scope_class": "global",
+  "description": "Content embedding vector v1",
+  "prompt": "Exactly 64 numbers between -1 and 1.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema defines an array of exactly 64 numbers, with each element constrained between -1 and 1 to represent the content embedding vector.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": {
+      "maximum": 1,
+      "minimum": -1,
+      "type": "number"
+    },
+    "maxItems": 64,
+    "minItems": 64,
+    "title": "Embedding Vector v1",
+    "type": "array"
+  },
+  "suspected_gaps": [],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

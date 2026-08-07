@@ -1,0 +1,41 @@
+{
+  "identifier": "highlight_quotes",
+  "scope_class": "global",
+  "description": "Pull quotes highlighted in the article",
+  "prompt": "A list of 1-5 quote strings; at least two of them must be shorter than 80 characters when there are three or more.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema defines an array with 1 to 5 strings. It applies a conditional constraint using if-then so that when there are 3 or more items, the contains and minContains keywords validate that at least two of them are shorter than 80 characters.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "if": {
+      "minItems": 3
+    },
+    "items": {
+      "description": "A highlighted pull quote",
+      "type": "string"
+    },
+    "maxItems": 5,
+    "minItems": 1,
+    "then": {
+      "contains": {
+        "maxLength": 79,
+        "type": "string"
+      },
+      "minContains": 2
+    },
+    "type": "array"
+  },
+  "suspected_gaps": [
+    "contains",
+    "if",
+    "minContains",
+    "then"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

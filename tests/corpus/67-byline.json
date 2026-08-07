@@ -1,0 +1,56 @@
+{
+  "identifier": "byline",
+  "scope_class": "global",
+  "description": "Byline of the article",
+  "prompt": "Either a person (name, optional email) or an organization (orgName), never both at once.",
+  "model": "gemini-3.5-flash",
+  "notes": "We use a `oneOf` block to ensure the byline is either a person (requiring 'name' and optionally 'email') or an organization (requiring 'orgName'). Setting `additionalProperties: false` in both options prevents mixing properties from both structures.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "description": "The email address of the author",
+            "format": "email",
+            "type": "string"
+          },
+          "name": {
+            "description": "The full name of the author",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "type": "object"
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "orgName": {
+            "description": "The name of the publishing organization",
+            "type": "string"
+          }
+        },
+        "required": [
+          "orgName"
+        ],
+        "type": "object"
+      }
+    ],
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)",
+    "format:email"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

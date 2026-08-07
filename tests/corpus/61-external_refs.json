@@ -1,0 +1,30 @@
+{
+  "identifier": "external_refs",
+  "scope_class": "global",
+  "description": "References to the same story in external systems",
+  "prompt": "Object mapping system names (lowercase letters only) to opaque string ids.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema uses patternProperties to restrict keys to lowercase alphabetic characters and ensures all mapped values are opaque strings, with additionalProperties set to false to prevent non-matching keys.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "additionalProperties": false,
+    "patternProperties": {
+      "^[a-z]+$": {
+        "description": "Opaque string identifier for the system",
+        "type": "string"
+      }
+    },
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)",
+    "patternProperties"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

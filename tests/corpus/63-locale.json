@@ -1,0 +1,24 @@
+{
+  "identifier": "locale",
+  "scope_class": "site",
+  "description": "Rendering locale override",
+  "prompt": "A BCP 47-style code like nb or nb-NO.",
+  "model": "gemini-3.5-flash",
+  "notes": "A loose regular expression is used to validate BCP 47-style language tags, permitting optional region or script subtags without being overly restrictive.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "BCP 47-style locale code (e.g., nb, nb-NO)",
+    "pattern": "^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,8})*$",
+    "type": "string"
+  },
+  "suspected_gaps": [
+    "pattern"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

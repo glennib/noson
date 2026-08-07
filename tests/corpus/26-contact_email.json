@@ -15,44 +15,10 @@
     "format:email"
   ],
   "evaluation": {
-    "samples": 100,
+    "samples": 1000,
     "generation_errors": 0,
-    "invalid_samples": 100,
+    "invalid_samples": 0,
     "generation_error_examples": [],
-    "invalid_examples": [
-      {
-        "seed": 0,
-        "value": "ujxzBql3",
-        "errors": [
-          {
-            "message": "\"ujxzBql3\" is not a \"email\"",
-            "instance_path": "",
-            "schema_path": "/format"
-          }
-        ]
-      },
-      {
-        "seed": 1,
-        "value": "zsMbNLxQh",
-        "errors": [
-          {
-            "message": "\"zsMbNLxQh\" is not a \"email\"",
-            "instance_path": "",
-            "schema_path": "/format"
-          }
-        ]
-      },
-      {
-        "seed": 2,
-        "value": "",
-        "errors": [
-          {
-            "message": "\"\" is not a \"email\"",
-            "instance_path": "",
-            "schema_path": "/format"
-          }
-        ]
-      }
-    ]
+    "invalid_examples": []
   }
 }

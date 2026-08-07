@@ -52,78 +52,10 @@
     "additionalProperties(false)"
   ],
   "evaluation": {
-    "samples": 100,
+    "samples": 1000,
     "generation_errors": 0,
-    "invalid_samples": 93,
+    "invalid_samples": 0,
     "generation_error_examples": [],
-    "invalid_examples": [
-      {
-        "seed": 0,
-        "value": {},
-        "errors": [
-          {
-            "message": "\"channel\" is a required property",
-            "instance_path": "",
-            "schema_path": "/required"
-          },
-          {
-            "message": "\"text\" is a required property",
-            "instance_path": "",
-            "schema_path": "/required"
-          },
-          {
-            "message": "{} is valid under more than one of the schemas listed in the 'oneOf' keyword",
-            "instance_path": "",
-            "schema_path": "/oneOf"
-          }
-        ]
-      },
-      {
-        "seed": 1,
-        "value": {
-          "text": true
-        },
-        "errors": [
-          {
-            "message": "\"channel\" is a required property",
-            "instance_path": "",
-            "schema_path": "/required"
-          },
-          {
-            "message": "true is not of type \"string\"",
-            "instance_path": "/text",
-            "schema_path": "/properties/text/type"
-          },
-          {
-            "message": "{\"text\":true} is valid under more than one of the schemas listed in the 'oneOf' keyword",
-            "instance_path": "",
-            "schema_path": "/oneOf"
-          }
-        ]
-      },
-      {
-        "seed": 2,
-        "value": {
-          "text": true
-        },
-        "errors": [
-          {
-            "message": "\"channel\" is a required property",
-            "instance_path": "",
-            "schema_path": "/required"
-          },
-          {
-            "message": "true is not of type \"string\"",
-            "instance_path": "/text",
-            "schema_path": "/properties/text/type"
-          },
-          {
-            "message": "{\"text\":true} is valid under more than one of the schemas listed in the 'oneOf' keyword",
-            "instance_path": "",
-            "schema_path": "/oneOf"
-          }
-        ]
-      }
-    ]
+    "invalid_examples": []
   }
 }

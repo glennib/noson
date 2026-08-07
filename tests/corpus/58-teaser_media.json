@@ -1,0 +1,71 @@
+{
+  "identifier": "teaser_media",
+  "scope_class": "global",
+  "description": "Teaser media for front pages",
+  "prompt": "Either an image (kind, url, alt text) or a video (kind, url, duration in seconds). The kind field distinguishes the two.",
+  "model": "gemini-3.5-flash",
+  "notes": "Uses a top-level `oneOf` to distinctively validate either an image or a video configuration based on the `kind` property. Basic string types are preferred for URLs to avoid validation failures on relative or local paths.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "oneOf": [
+      {
+        "additionalProperties": false,
+        "properties": {
+          "alt": {
+            "description": "Alternative text describing the image for accessibility",
+            "type": "string"
+          },
+          "kind": {
+            "const": "image",
+            "description": "Identifier for image media type",
+            "type": "string"
+          },
+          "url": {
+            "description": "The URL of the teaser image",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "url",
+          "alt"
+        ]
+      },
+      {
+        "additionalProperties": false,
+        "properties": {
+          "duration": {
+            "description": "Duration of the video in seconds",
+            "minimum": 0,
+            "type": "integer"
+          },
+          "kind": {
+            "const": "video",
+            "description": "Identifier for video media type",
+            "type": "string"
+          },
+          "url": {
+            "description": "The URL of the teaser video",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "url",
+          "duration"
+        ]
+      }
+    ],
+    "type": "object"
+  },
+  "suspected_gaps": [
+    "additionalProperties(false)"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

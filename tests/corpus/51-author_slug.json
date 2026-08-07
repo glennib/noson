@@ -1,0 +1,25 @@
+{
+  "identifier": "author_slug",
+  "scope_class": "global",
+  "description": "Canonical author slug",
+  "prompt": "Lowercase letters, digits and hyphens, like jane-doe-2.",
+  "model": "gemini-3.5-flash",
+  "notes": "The schema restricts the value to a non-empty string consisting only of lowercase letters, digits, and hyphens, matching the operator's format requirement.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Canonical author slug containing only lowercase alphanumeric characters and hyphens.",
+    "minLength": 1,
+    "pattern": "^[a-z0-9-]+$",
+    "type": "string"
+  },
+  "suspected_gaps": [
+    "pattern"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

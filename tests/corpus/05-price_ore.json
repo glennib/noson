@@ -16,44 +16,10 @@
     "multipleOf"
   ],
   "evaluation": {
-    "samples": 100,
+    "samples": 1000,
     "generation_errors": 0,
-    "invalid_samples": 94,
+    "invalid_samples": 0,
     "generation_error_examples": [],
-    "invalid_examples": [
-      {
-        "seed": 0,
-        "value": 73,
-        "errors": [
-          {
-            "message": "73 is not a multiple of 25",
-            "instance_path": "",
-            "schema_path": "/multipleOf"
-          }
-        ]
-      },
-      {
-        "seed": 1,
-        "value": 98,
-        "errors": [
-          {
-            "message": "98 is not a multiple of 25",
-            "instance_path": "",
-            "schema_path": "/multipleOf"
-          }
-        ]
-      },
-      {
-        "seed": 2,
-        "value": 30,
-        "errors": [
-          {
-            "message": "30 is not a multiple of 25",
-            "instance_path": "",
-            "schema_path": "/multipleOf"
-          }
-        ]
-      }
-    ]
+    "invalid_examples": []
   }
 }

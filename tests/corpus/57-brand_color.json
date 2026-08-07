@@ -1,0 +1,24 @@
+{
+  "identifier": "brand_color",
+  "scope_class": "site",
+  "description": "Brand color used for article theming",
+  "prompt": "A hex color code like #A1B2C3.",
+  "model": "gemini-3.5-flash",
+  "notes": "This schema validates that the brand color is a standard hexadecimal color code, supporting both 3-character and 6-character shorthand formats.",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "description": "Hex color code starting with # followed by 3 or 6 hex digits",
+    "pattern": "^#([a-fA-F0-9]{6}|[a-fA-F0-9]{3})$",
+    "type": "string"
+  },
+  "suspected_gaps": [
+    "pattern"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

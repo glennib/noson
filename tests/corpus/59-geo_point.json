@@ -1,0 +1,37 @@
+{
+  "identifier": "geo_point",
+  "scope_class": "global",
+  "description": "Geographic point the story is about",
+  "prompt": "A [latitude, longitude] pair: exactly two numbers, latitude -90..90, longitude -180..180.",
+  "model": "gemini-3.5-flash",
+  "notes": "Uses Draft 2020-12 'prefixItems' and 'items: false' to enforce a tuple of exactly two numbers, constraining the first to latitude range [-90, 90] and the second to longitude range [-180, 180].",
+  "schema": {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "items": false,
+    "prefixItems": [
+      {
+        "description": "Latitude",
+        "maximum": 90,
+        "minimum": -90,
+        "type": "number"
+      },
+      {
+        "description": "Longitude",
+        "maximum": 180,
+        "minimum": -180,
+        "type": "number"
+      }
+    ],
+    "type": "array"
+  },
+  "suspected_gaps": [
+    "prefixItems"
+  ],
+  "evaluation": {
+    "samples": 1000,
+    "generation_errors": 0,
+    "invalid_samples": 0,
+    "generation_error_examples": [],
+    "invalid_examples": []
+  }
+}

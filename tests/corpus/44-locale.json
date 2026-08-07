@@ -16,44 +16,10 @@
     "pattern"
   ],
   "evaluation": {
-    "samples": 100,
+    "samples": 1000,
     "generation_errors": 0,
-    "invalid_samples": 91,
+    "invalid_samples": 0,
     "generation_error_examples": [],
-    "invalid_examples": [
-      {
-        "seed": 0,
-        "value": "ujxzBql3",
-        "errors": [
-          {
-            "message": "\"ujxzBql3\" does not match \"^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,4})?$\"",
-            "instance_path": "",
-            "schema_path": "/pattern"
-          }
-        ]
-      },
-      {
-        "seed": 1,
-        "value": "zsMbNLxQh",
-        "errors": [
-          {
-            "message": "\"zsMbNLxQh\" does not match \"^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,4})?$\"",
-            "instance_path": "",
-            "schema_path": "/pattern"
-          }
-        ]
-      },
-      {
-        "seed": 2,
-        "value": "",
-        "errors": [
-          {
-            "message": "\"\" does not match \"^[a-zA-Z]{2,3}(-[a-zA-Z0-9]{2,4})?$\"",
-            "instance_path": "",
-            "schema_path": "/pattern"
-          }
-        ]
-      }
-    ]
+    "invalid_examples": []
   }
 }

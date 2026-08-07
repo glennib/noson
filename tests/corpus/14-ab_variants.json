@@ -22,44 +22,10 @@
     "minProperties"
   ],
   "evaluation": {
-    "samples": 100,
+    "samples": 1000,
     "generation_errors": 0,
-    "invalid_samples": 100,
+    "invalid_samples": 0,
     "generation_error_examples": [],
-    "invalid_examples": [
-      {
-        "seed": 0,
-        "value": {},
-        "errors": [
-          {
-            "message": "{} has less than 1 property",
-            "instance_path": "",
-            "schema_path": "/minProperties"
-          }
-        ]
-      },
-      {
-        "seed": 1,
-        "value": {},
-        "errors": [
-          {
-            "message": "{} has less than 1 property",
-            "instance_path": "",
-            "schema_path": "/minProperties"
-          }
-        ]
-      },
-      {
-        "seed": 2,
-        "value": {},
-        "errors": [
-          {
-            "message": "{} has less than 1 property",
-            "instance_path": "",
-            "schema_path": "/minProperties"
-          }
-        ]
-      }
-    ]
+    "invalid_examples": []
   }
 }

@@ -20,44 +20,10 @@
     "type(array)"
   ],
   "evaluation": {
-    "samples": 100,
+    "samples": 1000,
     "generation_errors": 0,
-    "invalid_samples": 80,
+    "invalid_samples": 0,
     "generation_error_examples": [],
-    "invalid_examples": [
-      {
-        "seed": 0,
-        "value": "jxzBql3Q",
-        "errors": [
-          {
-            "message": "\"jxzBql3Q\" is not of types \"null\", \"integer\"",
-            "instance_path": "",
-            "schema_path": "/type"
-          }
-        ]
-      },
-      {
-        "seed": 1,
-        "value": "zsMbNLxQh9",
-        "errors": [
-          {
-            "message": "\"zsMbNLxQh9\" is not of types \"null\", \"integer\"",
-            "instance_path": "",
-            "schema_path": "/type"
-          }
-        ]
-      },
-      {
-        "seed": 3,
-        "value": 9,
-        "errors": [
-          {
-            "message": "9 is greater than the maximum of 6",
-            "instance_path": "",
-            "schema_path": "/maximum"
-          }
-        ]
-      }
-    ]
+    "invalid_examples": []
   }
 }
