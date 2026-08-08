@@ -7,8 +7,16 @@ value that validates against it.
 
 ## Installation
 
+As a library:
+
 ```sh
 cargo add noson
+```
+
+As a CLI:
+
+```sh
+cargo install noson
 ```
 
 ## Usage
@@ -40,6 +48,21 @@ println!("{}", serde_json::to_string_pretty(&example).unwrap());
 
 Required properties are always included; optional properties are included with
 50% probability. Recursive schemas are supported up to a nesting depth of 16.
+
+## CLI
+
+The crate ships a `noson` binary that reads a schema from a file or stdin and
+writes random values to stdout:
+
+```sh
+noson schema.json                    # one random value from a file
+cat schema.json | noson              # ... from stdin
+noson --seed 42 -n 100 schema.json   # 100 reproducible values, one per line
+noson --pretty schema.json           # pretty-printed output
+```
+
+When `--seed` is omitted, a random seed is used and printed to stderr so the
+output can be reproduced. See `noson --help` for all options.
 
 ## Supported Schema Features
 

@@ -5,6 +5,10 @@
 //! the random number generator, making output reproducible when a seeded RNG is
 //! used.
 //!
+//! The crate also ships a `noson` CLI binary (`cargo install noson`) that reads
+//! a schema from a file or stdin and writes random values to stdout; see
+//! `noson --help` for its options.
+//!
 //! # Example
 //!
 //! ```
