@@ -63,6 +63,14 @@ fn generate_value(ctx: &Context, schema: &Value, rng: &mut impl Rng) -> Result<V
         return Ok(generate_random_simple(rng));
     }
 
+    // `not` rejects rather than constrains, so it cannot be merged into the
+    // schema it accompanies: the rest of the schema — composition and all —
+    // generates candidates, and ones the negated sub-schema accepts are
+    // redrawn. Stripping the keyword before recursing is what terminates.
+    if let Some(negated) = obj.get("not") {
+        return generate_negated(ctx, obj, negated, rng);
+    }
+
     // Composition keywords ($ref, allOf, anyOf, oneOf) are conjunctive with
     // their sibling keywords, so they are resolved by merging before any
     // other keyword is considered.
@@ -1193,6 +1201,47 @@ fn generate_unique_array(
     Ok(Value::Array(items))
 }
 
+/// Samples drawn before concluding a `not` sub-schema cannot be avoided.
+const NOT_RETRIES: usize = 64;
+
+/// Generate from `obj` without its `not`, redrawing while the negated
+/// sub-schema accepts the candidate.
+///
+/// Rejection needs a satisfaction check, and [`satisfies`] is deliberately
+/// partial: an undecidable candidate is accepted, so a `not` built from
+/// keywords the checker does not implement is best-effort rather than
+/// enforced. The shapes that occur in practice — `not` against `enum`,
+/// `const`, or `type` — are decided exactly.
+fn generate_negated(
+    ctx: &Context,
+    obj: &Map<String, Value>,
+    negated: &Value,
+    rng: &mut impl Rng,
+) -> Result<Value, Error> {
+    if negated == &Value::Bool(true) {
+        return Err(Error::ConflictingConstraints {
+            message: "`not: true` rejects all values".into(),
+        });
+    }
+
+    let mut rest = obj.clone();
+    rest.remove("not");
+    let rest = Value::Object(rest);
+
+    for _ in 0..NOT_RETRIES {
+        let candidate = generate_value(ctx, &rest, rng)?;
+        if satisfies(ctx, negated, &candidate) != Satisfies::Yes {
+            return Ok(candidate);
+        }
+    }
+
+    Err(Error::ConflictingConstraints {
+        message: format!(
+            "every one of {NOT_RETRIES} samples satisfied the `not` sub-schema {negated}"
+        ),
+    })
+}
+
 const COMPOSITION_KEYWORDS: [&str; 7] = ["$ref", "allOf", "anyOf", "oneOf", "if", "then", "else"];
 
 const CONDITIONAL_KEYWORDS: [&str; 3] = ["if", "then", "else"];
@@ -1570,6 +1619,24 @@ fn merge_keyword(
             }
         }
         "items" => merge_wrapping_all_of(target, key, value),
+        // Conjoined negations forbid the union of what each forbids:
+        // ¬A ∧ ¬B = ¬(A ∨ B).
+        "not" => {
+            let combined = match target.get(key) {
+                None => value.clone(),
+                Some(existing) if existing == value => return Ok(()),
+                Some(existing) => {
+                    let mut union = Map::new();
+                    union.insert(
+                        "anyOf".into(),
+                        Value::Array(vec![existing.clone(), value.clone()]),
+                    );
+                    Value::Object(union)
+                }
+            };
+            target.insert(key.into(), combined);
+            Ok(())
+        }
         "minimum" | "exclusiveMinimum" | "minLength" | "minItems" | "minProperties"
         | "minContains" => merge_bound(target, key, value, BoundKind::Lower),
         "maximum" | "exclusiveMaximum" | "maxLength" | "maxItems" | "maxProperties"
@@ -1867,4 +1934,298 @@ fn resolve_ref<'a>(root: &'a Value, reference: &str) -> Result<&'a Value, Error>
 
     // If we never moved (e.g. "#" or empty ref), return root
     Ok(current)
+}
+
+/// Whether a value satisfies a schema, as far as a deliberately partial
+/// checker can tell.
+///
+/// [`Satisfies::Unknown`] is the answer for every keyword the checker does not
+/// implement, so callers must treat it as "no information" rather than as a
+/// weak yes or no.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Satisfies {
+    Yes,
+    No,
+    Unknown,
+}
+
+impl Satisfies {
+    fn from_bool(b: bool) -> Self {
+        if b { Self::Yes } else { Self::No }
+    }
+
+    fn negate(self) -> Self {
+        match self {
+            Self::Yes => Self::No,
+            Self::No => Self::Yes,
+            Self::Unknown => Self::Unknown,
+        }
+    }
+}
+
+/// Decide whether `value` satisfies `schema`.
+///
+/// The keywords at a schema level are a conjunction, so one `No` decides the
+/// whole schema, and an undecidable keyword leaves the result `Unknown` unless
+/// some other keyword says `No`. Keywords that need machinery this checker
+/// does not have — `pattern` (the `regex` crate is not a dependency),
+/// `format`, `patternProperties`, `additionalProperties`, the `contains`
+/// family, `dependent*`, `unevaluated*` — are undecidable, as is any keyword
+/// not listed at all.
+fn satisfies(ctx: &Context, schema: &Value, value: &Value) -> Satisfies {
+    let obj = match schema {
+        Value::Bool(true) => return Satisfies::Yes,
+        Value::Bool(false) => return Satisfies::No,
+        Value::Object(obj) => obj,
+        _ => return Satisfies::Unknown,
+    };
+
+    conjoin(
+        obj.iter()
+            .map(|(key, sub)| satisfies_keyword(ctx, obj, key, sub, value)),
+    )
+}
+
+/// Conjunction over sub-verdicts: one `No` decides the outcome, and otherwise
+/// a single undecidable part makes the whole undecidable.
+fn conjoin(verdicts: impl IntoIterator<Item = Satisfies>) -> Satisfies {
+    let mut result = Satisfies::Yes;
+    for verdict in verdicts {
+        match verdict {
+            Satisfies::Yes => {}
+            Satisfies::No => return Satisfies::No,
+            Satisfies::Unknown => result = Satisfies::Unknown,
+        }
+    }
+    result
+}
+
+fn satisfies_keyword(
+    ctx: &Context,
+    obj: &Map<String, Value>,
+    key: &str,
+    sub: &Value,
+    value: &Value,
+) -> Satisfies {
+    match key {
+        "title" | "description" | "default" | "examples" | "$comment" | "$schema" | "$id"
+        | "$defs" | "definitions" | "deprecated" | "readOnly" | "writeOnly" => Satisfies::Yes,
+        "const" => Satisfies::from_bool(value == sub),
+        "enum" => match sub {
+            Value::Array(variants) => Satisfies::from_bool(variants.contains(value)),
+            _ => Satisfies::Unknown,
+        },
+        "type" => satisfies_type(sub, value),
+        "not" => satisfies(ctx, sub, value).negate(),
+        "allOf" => match sub {
+            Value::Array(members) => {
+                conjoin(members.iter().map(|member| satisfies(ctx, member, value)))
+            }
+            _ => Satisfies::Unknown,
+        },
+        "anyOf" | "oneOf" => match sub {
+            Value::Array(branches) => {
+                let verdicts: Vec<Satisfies> =
+                    branches.iter().map(|b| satisfies(ctx, b, value)).collect();
+                let matched = verdicts.iter().filter(|v| **v == Satisfies::Yes).count();
+                if verdicts.contains(&Satisfies::Unknown) {
+                    // A branch that might match can flip either verdict.
+                    Satisfies::Unknown
+                } else if key == "anyOf" {
+                    Satisfies::from_bool(matched > 0)
+                } else {
+                    Satisfies::from_bool(matched == 1)
+                }
+            }
+            _ => Satisfies::Unknown,
+        },
+        // The trio is only meaningful together, so `if` evaluates it whole and
+        // the branches assert nothing on their own.
+        "if" => match satisfies(ctx, sub, value) {
+            Satisfies::Yes => match obj.get("then") {
+                Some(then) => satisfies(ctx, then, value),
+                None => Satisfies::Yes,
+            },
+            Satisfies::No => match obj.get("else") {
+                Some(otherwise) => satisfies(ctx, otherwise, value),
+                None => Satisfies::Yes,
+            },
+            Satisfies::Unknown => Satisfies::Unknown,
+        },
+        "then" | "else" => Satisfies::Yes,
+        // Recursion is depth-guarded like generation, and the ceiling yields
+        // no information rather than an error.
+        "$ref" => match (sub.as_str(), child_ctx(ctx)) {
+            (Some(reference), Some(child)) => match resolve_ref(ctx.root, reference) {
+                Ok(resolved) => satisfies(&child, resolved, value),
+                Err(_) => Satisfies::Unknown,
+            },
+            _ => Satisfies::Unknown,
+        },
+        "required" => match (value.as_object(), sub.as_array()) {
+            (None, _) => Satisfies::Yes,
+            (Some(_), None) => Satisfies::Unknown,
+            (Some(fields), Some(names)) => Satisfies::from_bool(
+                names
+                    .iter()
+                    .all(|name| name.as_str().is_some_and(|name| fields.contains_key(name))),
+            ),
+        },
+        "properties" => match (value.as_object(), sub.as_object(), child_ctx(ctx)) {
+            (None, _, _) => Satisfies::Yes,
+            // A property the value does not have is not constrained here.
+            (Some(fields), Some(declared), Some(child)) => conjoin(
+                declared
+                    .iter()
+                    .filter_map(|(name, schema)| fields.get(name).map(|v| (schema, v)))
+                    .map(|(schema, v)| satisfies(&child, schema, v)),
+            ),
+            _ => Satisfies::Unknown,
+        },
+        // `items` applies past the `prefixItems` prefix, so the prefix length
+        // decides which elements it covers.
+        "items" => match (value.as_array(), child_ctx(ctx)) {
+            (None, _) => Satisfies::Yes,
+            (Some(items), Some(child)) => {
+                let prefix = obj
+                    .get("prefixItems")
+                    .and_then(Value::as_array)
+                    .map_or(0, Vec::len);
+                conjoin(
+                    items
+                        .iter()
+                        .skip(prefix)
+                        .map(|item| satisfies(&child, sub, item)),
+                )
+            }
+            _ => Satisfies::Unknown,
+        },
+        "prefixItems" => match (value.as_array(), sub.as_array(), child_ctx(ctx)) {
+            (None, _, _) => Satisfies::Yes,
+            (Some(items), Some(prefix), Some(child)) => conjoin(
+                items
+                    .iter()
+                    .zip(prefix)
+                    .map(|(item, schema)| satisfies(&child, schema, item)),
+            ),
+            _ => Satisfies::Unknown,
+        },
+        "uniqueItems" => match (value.as_array(), sub.as_bool()) {
+            (None, _) => Satisfies::Yes,
+            (Some(_), Some(false)) => Satisfies::Yes,
+            (Some(items), Some(true)) => Satisfies::from_bool(
+                !items
+                    .iter()
+                    .enumerate()
+                    .any(|(i, item)| items[..i].contains(item)),
+            ),
+            _ => Satisfies::Unknown,
+        },
+        "minLength" | "maxLength" => match (value.as_str(), sub.as_u64()) {
+            (None, _) => Satisfies::Yes,
+            (Some(s), Some(bound)) => {
+                let len = s.chars().count() as u64;
+                Satisfies::from_bool(if key == "minLength" {
+                    len >= bound
+                } else {
+                    len <= bound
+                })
+            }
+            _ => Satisfies::Unknown,
+        },
+        "minItems" | "maxItems" => match (value.as_array(), sub.as_u64()) {
+            (None, _) => Satisfies::Yes,
+            (Some(items), Some(bound)) => {
+                let len = items.len() as u64;
+                Satisfies::from_bool(if key == "minItems" {
+                    len >= bound
+                } else {
+                    len <= bound
+                })
+            }
+            _ => Satisfies::Unknown,
+        },
+        "minProperties" | "maxProperties" => match (value.as_object(), sub.as_u64()) {
+            (None, _) => Satisfies::Yes,
+            (Some(fields), Some(bound)) => {
+                let len = fields.len() as u64;
+                Satisfies::from_bool(if key == "minProperties" {
+                    len >= bound
+                } else {
+                    len <= bound
+                })
+            }
+            _ => Satisfies::Unknown,
+        },
+        "minimum" | "maximum" | "exclusiveMinimum" | "exclusiveMaximum" => {
+            match (value.as_f64(), sub.as_f64()) {
+                (None, _) if !value.is_number() => Satisfies::Yes,
+                (Some(n), Some(bound)) => Satisfies::from_bool(match key {
+                    "minimum" => n >= bound,
+                    "maximum" => n <= bound,
+                    "exclusiveMinimum" => n > bound,
+                    _ => n < bound,
+                }),
+                _ => Satisfies::Unknown,
+            }
+        }
+        // Only integers are decided; a float remainder cannot distinguish a
+        // true violation from representation error.
+        "multipleOf" => match (value.as_i64(), sub.as_i64()) {
+            (None, _) if !value.is_number() => Satisfies::Yes,
+            (Some(n), Some(step)) if step != 0 => Satisfies::from_bool(n % step == 0),
+            _ => Satisfies::Unknown,
+        },
+        _ => Satisfies::Unknown,
+    }
+}
+
+fn satisfies_type(sub: &Value, value: &Value) -> Satisfies {
+    fn matches(type_name: &str, value: &Value) -> Satisfies {
+        match type_name {
+            "null" => Satisfies::from_bool(value.is_null()),
+            "boolean" => Satisfies::from_bool(value.is_boolean()),
+            "string" => Satisfies::from_bool(value.is_string()),
+            "object" => Satisfies::from_bool(value.is_object()),
+            "array" => Satisfies::from_bool(value.is_array()),
+            "number" => Satisfies::from_bool(value.is_number()),
+            // A number with zero fractional part is an integer, per the spec.
+            "integer" => Satisfies::from_bool(
+                value.is_i64()
+                    || value.is_u64()
+                    || value.as_f64().is_some_and(|n| n.fract() == 0.0),
+            ),
+            _ => Satisfies::Unknown,
+        }
+    }
+
+    match sub {
+        Value::String(type_name) => matches(type_name, value),
+        Value::Array(type_names) => {
+            let verdicts: Vec<Satisfies> = type_names
+                .iter()
+                .map(|name| match name.as_str() {
+                    Some(name) => matches(name, value),
+                    None => Satisfies::Unknown,
+                })
+                .collect();
+            if verdicts.contains(&Satisfies::Yes) {
+                Satisfies::Yes
+            } else if verdicts.contains(&Satisfies::Unknown) {
+                Satisfies::Unknown
+            } else {
+                Satisfies::No
+            }
+        }
+        _ => Satisfies::Unknown,
+    }
+}
+
+/// A context one level deeper, or `None` at the depth ceiling.
+fn child_ctx<'a>(ctx: &Context<'a>) -> Option<Context<'a>> {
+    (ctx.depth < ctx.max_depth).then(|| Context {
+        root: ctx.root,
+        depth: ctx.depth + 1,
+        max_depth: ctx.max_depth,
+    })
 }
