@@ -56,12 +56,17 @@ Required properties are always included; optional properties are included with
 - **Array uniqueness**: `uniqueItems` -- collisions are retried a bounded
   number of times per slot, erroring when `minItems` distinct items cannot be
   found
-- **Array containment**: `contains`/`minContains` -- `minContains` slots (one by
-  default) are generated from the merge of `contains` and the schema the slot
-  would otherwise use, so they satisfy `contains` by construction, and the
-  generated length always leaves room for them. A `contains` that cannot be
-  merged with any slot's own schema is reported as conflicting;
-  `minContains: 0` waives the requirement
+- **Array containment**: `contains`/`minContains`/`maxContains` --
+  `minContains` slots (one by default) are generated from the merge of
+  `contains` and the schema the slot would otherwise use, so they satisfy
+  `contains` by construction, and the generated length always leaves room for
+  them. A `contains` that cannot be merged with any slot's own schema is
+  reported as conflicting; `minContains: 0` waives the requirement.
+  `maxContains` caps how many elements may match: a slot whose candidate would
+  exceed the cap is redrawn, and one that cannot avoid matching leaves the array
+  short (never below `minItems`) or, when even that is impossible, reports the
+  conflict. Matches the satisfaction check behind `not` cannot decide are not
+  counted, so `maxContains` over such a `contains` is best-effort
 - **Object sizing**: `minProperties`/`maxProperties` -- property selection is
   count-aware; when the declared properties cannot reach `minProperties`,
   extra entries are synthesized from `patternProperties`, `propertyNames`, or
@@ -104,7 +109,7 @@ or, in the case of external `$ref`, return an error.
 - **Object**: `unevaluatedProperties`; `patternProperties` and `propertyNames`
   are only consulted when synthesizing extra entries -- they are not enforced
   on declared `properties`
-- **Array**: `additionalItems`, `maxContains`, `unevaluatedItems`
+- **Array**: `additionalItems`, `unevaluatedItems`
 - **Dependencies**: `dependentSchemas`
 - **References**: external `$ref` (http/file URIs), `$dynamicRef`, `$anchor`
 
@@ -112,7 +117,6 @@ or, in the case of external `$ref`, return an error.
 
 - **Builder/configuration API** -- customizable string length ranges, array
   sizes, max recursion depth
-- **`maxContains`**
 - **`dependentSchemas`**
 - **External `$ref`** resolution (http/file references)
 

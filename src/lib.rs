@@ -46,13 +46,18 @@
 //!   number of times per slot; when the item space is exhausted the array is
 //!   returned short (never below `minItems`), and an error is returned when
 //!   `minItems` distinct items cannot be found
-//! - **Array containment**: `contains`/`minContains` — `minContains` slots (one
-//!   by default) are generated from the merge of `contains` and the schema the
-//!   slot would otherwise use, so they satisfy `contains` by construction, and
-//!   the generated length always leaves room for them. Slots past the
-//!   `prefixItems` prefix are preferred; a `contains` that cannot be merged
-//!   with any slot's own schema is reported as conflicting. `minContains: 0`
-//!   waives the requirement
+//! - **Array containment**: `contains`/`minContains`/`maxContains` —
+//!   `minContains` slots (one by default) are generated from the merge of
+//!   `contains` and the schema the slot would otherwise use, so they satisfy
+//!   `contains` by construction, and the generated length always leaves room
+//!   for them. Slots past the `prefixItems` prefix are preferred; a `contains`
+//!   that cannot be merged with any slot's own schema is reported as
+//!   conflicting. `minContains: 0` waives the requirement. `maxContains` caps
+//!   how many elements may match: a slot whose candidate would exceed the cap
+//!   is redrawn, and one that cannot avoid matching leaves the array short
+//!   (never below `minItems`) or, when even that is impossible, reports the
+//!   conflict. Matches the satisfaction check behind `not` cannot decide are
+//!   not counted, so `maxContains` over such a `contains` is best-effort
 //! - **Object sizing**: `minProperties`/`maxProperties` — property selection is
 //!   count-aware: all required properties plus a random number of optional ones
 //!   within the allowed range. When the declared properties cannot reach
@@ -106,7 +111,7 @@
 //! - **Object**: `unevaluatedProperties`; `patternProperties` and
 //!   `propertyNames` are only consulted when synthesizing extra entries — they
 //!   are not enforced on declared `properties`
-//! - **Array**: `additionalItems`, `maxContains`, `unevaluatedItems`
+//! - **Array**: `additionalItems`, `unevaluatedItems`
 //! - **Dependencies**: `dependentSchemas`
 //! - **References**: external `$ref` (http/file URIs), `$dynamicRef`, `$anchor`
 
@@ -1167,6 +1172,130 @@ mod tests {
             let items = value.as_array().expect("should generate an array");
             assert!(items.contains(&json!("x")), "expected an \"x\" in {value}");
         }
+    }
+
+    #[test]
+    fn test_array_max_contains_caps_matches() {
+        let schema = json!({
+            "type": "array",
+            "items": {"type": "integer", "minimum": 0, "maximum": 9},
+            "minItems": 4,
+            "maxItems": 6,
+            "contains": {"type": "integer", "minimum": 5},
+            "minContains": 1,
+            "maxContains": 2
+        });
+        generate_and_validate_n(&schema, 200);
+    }
+
+    /// With `maxContains` at the same value as `minContains`, the satisfier
+    /// slots use the whole budget and no other slot may match.
+    #[test]
+    fn test_array_max_contains_equal_to_min_contains() {
+        let schema = json!({
+            "type": "array",
+            "items": {"enum": ["a", "b"]},
+            "minItems": 4,
+            "maxItems": 4,
+            "contains": {"const": "a"},
+            "minContains": 1,
+            "maxContains": 1
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..200 {
+            let value = generate(&schema, &mut rng).expect("generation should succeed");
+            let items = value.as_array().expect("should generate an array");
+            let matches = items.iter().filter(|item| **item == json!("a")).count();
+            assert_eq!(matches, 1, "expected exactly one match in {value}");
+        }
+    }
+
+    /// `maxContains: 0` forbids what `contains` describes, and needs
+    /// `minContains: 0` to be satisfiable at all.
+    #[test]
+    fn test_array_max_contains_zero_forbids_matches() {
+        let schema = json!({
+            "type": "array",
+            "items": {"enum": ["a", "b"]},
+            "minItems": 3,
+            "contains": {"const": "a"},
+            "minContains": 0,
+            "maxContains": 0
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..200 {
+            let value = generate(&schema, &mut rng).expect("generation should succeed");
+            let items = value.as_array().expect("should generate an array");
+            assert!(!items.contains(&json!("a")), "expected no \"a\" in {value}");
+        }
+        generate_and_validate_n(&schema, 100);
+    }
+
+    /// A bare `maxContains: 0` also has the default `minContains: 1`, so it
+    /// demands at least one and at most zero matching elements.
+    #[test]
+    fn test_array_max_contains_zero_without_min_contains_returns_error() {
+        let schema = json!({
+            "type": "array",
+            "items": {"type": "string"},
+            "contains": {"type": "string"},
+            "maxContains": 0
+        });
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    /// Every element matches `contains` by construction, so no array of the
+    /// required length can stay within `maxContains`.
+    #[test]
+    fn test_array_max_contains_below_forced_matches_returns_error() {
+        let schema = json!({
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 3,
+            "contains": {"type": "string"},
+            "minContains": 1,
+            "maxContains": 1
+        });
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    /// A shorter array is valid, so an unfillable slot shortens it rather than
+    /// failing — here only two of the three allowed elements can avoid
+    /// `contains`.
+    #[test]
+    fn test_array_max_contains_settles_short() {
+        let schema = json!({
+            "type": "array",
+            "items": {"enum": ["a", "b", "c"]},
+            "uniqueItems": true,
+            "minItems": 2,
+            "maxItems": 3,
+            "contains": {"const": "c"},
+            "minContains": 0,
+            "maxContains": 0
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..100 {
+            let value = generate(&schema, &mut rng).expect("generation should succeed");
+            let items = value.as_array().expect("should generate an array");
+            assert!(!items.contains(&json!("c")), "expected no \"c\" in {value}");
+            assert_eq!(
+                items.len(),
+                2,
+                "expected the array to settle short: {value}"
+            );
+        }
+        generate_and_validate_n(&schema, 100);
     }
 
     #[test]
