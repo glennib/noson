@@ -46,6 +46,13 @@
 //!   number of times per slot; when the item space is exhausted the array is
 //!   returned short (never below `minItems`), and an error is returned when
 //!   `minItems` distinct items cannot be found
+//! - **Array containment**: `contains`/`minContains` — `minContains` slots (one
+//!   by default) are generated from the merge of `contains` and the schema the
+//!   slot would otherwise use, so they satisfy `contains` by construction, and
+//!   the generated length always leaves room for them. Slots past the
+//!   `prefixItems` prefix are preferred; a `contains` that cannot be merged
+//!   with any slot's own schema is reported as conflicting. `minContains: 0`
+//!   waives the requirement
 //! - **Object sizing**: `minProperties`/`maxProperties` — property selection is
 //!   count-aware: all required properties plus a random number of optional ones
 //!   within the allowed range. When the declared properties cannot reach
@@ -91,8 +98,7 @@
 //! - **Object**: `unevaluatedProperties`; `patternProperties` and
 //!   `propertyNames` are only consulted when synthesizing extra entries — they
 //!   are not enforced on declared `properties`
-//! - **Array**: `additionalItems`, `contains`, `minContains`, `maxContains`,
-//!   `unevaluatedItems`
+//! - **Array**: `additionalItems`, `maxContains`, `unevaluatedItems`
 //! - **Composition**: `not`
 //! - **Dependencies**: `dependentSchemas`
 //! - **References**: external `$ref` (http/file URIs), `$dynamicRef`, `$anchor`
@@ -978,6 +984,229 @@ mod tests {
             "maxItems": 4
         });
         generate_and_validate_n(&schema, 100);
+    }
+
+    // ── Array contains ──
+
+    /// The `64-gallery` corpus shape: "at least one image must be marked as
+    /// the cover", where the flag is an optional boolean on the item schema.
+    #[test]
+    fn test_array_contains_cover_flag() {
+        let schema = json!({
+            "type": "array",
+            "minItems": 1,
+            "items": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string"},
+                    "alt": {"type": "string"},
+                    "cover": {"type": "boolean"}
+                },
+                "required": ["url", "alt"]
+            },
+            "contains": {
+                "type": "object",
+                "properties": {"cover": {"const": true}},
+                "required": ["cover"]
+            }
+        });
+        generate_and_validate_n(&schema, 200);
+    }
+
+    /// The `72-gallery` corpus shape — the same schema without `minItems`, so
+    /// the satisfying element is what forces the array to be non-empty.
+    #[test]
+    fn test_array_contains_without_min_items_is_non_empty() {
+        let schema = json!({
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"cover": {"type": "boolean"}}
+            },
+            "contains": {
+                "type": "object",
+                "properties": {"cover": {"const": true}},
+                "required": ["cover"]
+            }
+        });
+        let mut rng = seeded_rng();
+        for i in 0..200 {
+            let value = generate(&schema, &mut rng).expect("generation should succeed");
+            let items = value.as_array().expect("should generate an array");
+            assert!(
+                items
+                    .iter()
+                    .any(|item| item.get("cover") == Some(&json!(true))),
+                "sample {i} has no element satisfying contains: {value}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_array_contains_true_is_non_empty() {
+        let schema = json!({"type": "array", "items": {"type": "string"}, "contains": true});
+        let mut rng = seeded_rng();
+        for _ in 0..50 {
+            let value = generate(&schema, &mut rng).expect("generation should succeed");
+            assert!(
+                !value
+                    .as_array()
+                    .expect("should generate an array")
+                    .is_empty(),
+                "contains requires at least one element: {value}"
+            );
+        }
+    }
+
+    /// `minContains: 0` waives the requirement, so no slot is forced — the
+    /// `const` the `contains` schema asks for never appears.
+    #[test]
+    fn test_array_min_contains_zero_forces_nothing() {
+        let schema = json!({
+            "type": "array",
+            "items": {"type": "integer", "minimum": 0, "maximum": 5},
+            "maxItems": 3,
+            "contains": {"const": 99},
+            "minContains": 0
+        });
+        let mut rng = seeded_rng();
+        for _ in 0..100 {
+            let value = generate(&schema, &mut rng).expect("generation should succeed");
+            let items = value.as_array().expect("should generate an array");
+            assert!(
+                !items.contains(&json!(99)),
+                "minContains: 0 should force nothing, got {value}"
+            );
+        }
+    }
+
+    #[test]
+    fn test_array_min_contains_two() {
+        let schema = json!({
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1,
+            "maxItems": 5,
+            "contains": {"type": "string", "maxLength": 3},
+            "minContains": 2
+        });
+        generate_and_validate_n(&schema, 200);
+    }
+
+    /// The `68-highlight_quotes` corpus shape: the conditional injects
+    /// `contains` and `minContains` into the array schema, so the satisfying
+    /// slots have to be honoured on the merged schema rather than the
+    /// declared one.
+    #[test]
+    fn test_array_contains_from_if_then_corpus_highlight_quotes() {
+        let schema = json!({
+            "type": "array",
+            "items": {"type": "string"},
+            "minItems": 1,
+            "maxItems": 5,
+            "if": {"minItems": 3},
+            "then": {
+                "contains": {"type": "string", "maxLength": 79},
+                "minContains": 2
+            }
+        });
+        generate_and_validate_n(&schema, 200);
+    }
+
+    /// Without an explicit `maxItems`, the default length accommodates
+    /// `minContains` instead of conflicting with it.
+    #[test]
+    fn test_array_min_contains_above_default_max_items() {
+        let schema = json!({
+            "type": "array",
+            "items": {"type": "integer"},
+            "contains": {"type": "integer", "minimum": 100, "maximum": 200},
+            "minContains": 5
+        });
+        generate_and_validate_n(&schema, 100);
+    }
+
+    #[test]
+    fn test_array_contains_satisfied_through_prefix_slot() {
+        let schema = json!({
+            "type": "array",
+            "prefixItems": [{"type": "integer", "minimum": 0, "maximum": 10}],
+            "items": false,
+            "contains": {"type": "integer", "minimum": 5}
+        });
+        generate_and_validate_n(&schema, 100);
+    }
+
+    #[test]
+    fn test_array_contains_with_unique_items() {
+        let schema = json!({
+            "type": "array",
+            "items": {"type": "integer", "minimum": 0, "maximum": 100},
+            "uniqueItems": true,
+            "minItems": 3,
+            "contains": {"type": "integer", "minimum": 90}
+        });
+        generate_and_validate_n(&schema, 200);
+    }
+
+    /// `contains` alone, with no `type` or `items`, still identifies the
+    /// schema as an array.
+    #[test]
+    fn test_array_contains_without_type_or_items() {
+        let schema = json!({"contains": {"const": "x"}});
+        let mut rng = seeded_rng();
+        for _ in 0..50 {
+            let value = generate(&schema, &mut rng).expect("generation should succeed");
+            let items = value.as_array().expect("should generate an array");
+            assert!(items.contains(&json!("x")), "expected an \"x\" in {value}");
+        }
+    }
+
+    #[test]
+    fn test_array_min_contains_above_max_items_returns_error() {
+        let schema = json!({
+            "type": "array",
+            "items": {"type": "string"},
+            "maxItems": 1,
+            "contains": {"type": "string"},
+            "minContains": 3
+        });
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_array_contains_disjoint_from_items_returns_error() {
+        let schema = json!({
+            "type": "array",
+            "items": {"type": "string"},
+            "contains": {"type": "number"}
+        });
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
+    }
+
+    #[test]
+    fn test_array_contains_with_items_false_and_no_prefix_returns_error() {
+        let schema = json!({
+            "type": "array",
+            "items": false,
+            "contains": {"type": "string"}
+        });
+        let mut rng = seeded_rng();
+        let err = generate(&schema, &mut rng).unwrap_err();
+        assert!(
+            matches!(err, crate::Error::ConflictingConstraints { .. }),
+            "expected ConflictingConstraints, got: {err}"
+        );
     }
 
     // ── Composition ──

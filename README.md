@@ -56,6 +56,12 @@ Required properties are always included; optional properties are included with
 - **Array uniqueness**: `uniqueItems` -- collisions are retried a bounded
   number of times per slot, erroring when `minItems` distinct items cannot be
   found
+- **Array containment**: `contains`/`minContains` -- `minContains` slots (one by
+  default) are generated from the merge of `contains` and the schema the slot
+  would otherwise use, so they satisfy `contains` by construction, and the
+  generated length always leaves room for them. A `contains` that cannot be
+  merged with any slot's own schema is reported as conflicting;
+  `minContains: 0` waives the requirement
 - **Object sizing**: `minProperties`/`maxProperties` -- property selection is
   count-aware; when the declared properties cannot reach `minProperties`,
   extra entries are synthesized from `patternProperties`, `propertyNames`, or
@@ -90,8 +96,7 @@ or, in the case of external `$ref`, return an error.
 - **Object**: `unevaluatedProperties`; `patternProperties` and `propertyNames`
   are only consulted when synthesizing extra entries -- they are not enforced
   on declared `properties`
-- **Array**: `additionalItems`, `contains`, `minContains`, `maxContains`,
-  `unevaluatedItems`
+- **Array**: `additionalItems`, `maxContains`, `unevaluatedItems`
 - **Composition**: `not`
 - **Dependencies**: `dependentSchemas`
 - **References**: external `$ref` (http/file URIs), `$dynamicRef`, `$anchor`
@@ -100,7 +105,7 @@ or, in the case of external `$ref`, return an error.
 
 - **Builder/configuration API** -- customizable string length ranges, array
   sizes, max recursion depth
-- **`contains`** / `minContains` / `maxContains`
+- **`maxContains`**
 - **`not`**
 - **`dependentSchemas`**
 - **External `$ref`** resolution (http/file references)

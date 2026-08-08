@@ -117,8 +117,8 @@ fn generate_value(ctx: &Context, schema: &Value, rng: &mut impl Rng) -> Result<V
         return generate_object(ctx, obj, rng);
     }
 
-    // No type but has items → treat as array
-    if obj.contains_key("items") {
+    // No type but has array-shaped keywords → treat as array
+    if ARRAY_KEYWORDS.iter().any(|k| obj.contains_key(*k)) {
         return generate_array(ctx, obj, rng);
     }
 
@@ -916,6 +916,10 @@ fn generate_property_name(
     }
 }
 
+/// Keywords that only constrain arrays, so a schema carrying one without a
+/// `type` is generated as an array.
+const ARRAY_KEYWORDS: [&str; 3] = ["items", "prefixItems", "contains"];
+
 fn generate_array(
     ctx: &Context,
     obj: &Map<String, Value>,
@@ -947,6 +951,22 @@ fn generate_array(
         .and_then(|v| v.as_u64())
         .map(|v| v as usize);
 
+    // `minContains` only asserts anything alongside `contains`, and defaults
+    // to 1: a bare `contains` demands one satisfying element.
+    let contains = obj.get("contains");
+    let min_contains = match (contains, obj.get("minContains")) {
+        (None, _) => 0,
+        (Some(_), None) => 1,
+        (Some(_), Some(value)) => match value.as_u64() {
+            Some(n) => n as usize,
+            None => {
+                return Err(Error::InvalidSchema {
+                    message: format!("minContains must be a non-negative integer, got {value}"),
+                });
+            }
+        },
+    };
+
     // `items: false` rejects every element beyond the prefix, so the tuple
     // length caps the count.
     if obj.get("items") == Some(&Value::Bool(false)) {
@@ -960,7 +980,11 @@ fn generate_array(
         }
         max_items = Some(max_items.map_or(prefix_items.len(), |m| m.min(prefix_items.len())));
     }
-    let max_items = max_items.unwrap_or_else(|| min_items.max(prefix_items.len()).max(3));
+    // The fallback length accommodates `minContains`, so a large
+    // `minContains` without `maxItems` is satisfied rather than reported as a
+    // conflict against the default.
+    let max_items =
+        max_items.unwrap_or_else(|| min_items.max(prefix_items.len()).max(min_contains).max(3));
 
     if min_items > max_items {
         return Err(Error::ConflictingConstraints {
@@ -968,12 +992,39 @@ fn generate_array(
         });
     }
 
+    if min_contains > max_items {
+        return Err(Error::ConflictingConstraints {
+            message: format!(
+                "minContains ({min_contains}) exceeds the maximum item count ({max_items})"
+            ),
+        });
+    }
+
     // Arrays shorter than the prefix are valid but make poor examples, so
-    // the count covers the full tuple whenever the bounds allow.
-    let count_min = min_items.max(prefix_items.len().min(max_items));
+    // the count covers the full tuple whenever the bounds allow. It also
+    // covers `minContains`, since each satisfying element needs a slot.
+    let count_min = min_items
+        .max(prefix_items.len().min(max_items))
+        .max(min_contains);
     let count = rng.random_range(count_min..=max_items);
 
     let item_schema = obj.get("items").cloned().unwrap_or(Value::Bool(true));
+
+    // Rather than hope a slot generated from `items` happens to satisfy
+    // `contains`, dedicated slots are generated from the merge of the two, so
+    // they satisfy it by construction.
+    let satisfier_slots = match contains {
+        Some(contains) if min_contains > 0 => choose_satisfier_slots(
+            &child_ctx,
+            prefix_items,
+            &item_schema,
+            contains,
+            count,
+            min_contains,
+            rng,
+        )?,
+        _ => Vec::new(),
+    };
 
     if obj
         .get("uniqueItems")
@@ -984,6 +1035,7 @@ fn generate_array(
             &child_ctx,
             prefix_items,
             &item_schema,
+            &satisfier_slots,
             min_items,
             count,
             rng,
@@ -992,32 +1044,123 @@ fn generate_array(
 
     let mut items = Vec::with_capacity(count);
     for i in 0..count {
-        let slot_schema = prefix_items.get(i).unwrap_or(&item_schema);
+        let slot_schema = slot_schema(prefix_items, &item_schema, &satisfier_slots, i);
         items.push(generate_value(&child_ctx, slot_schema, rng)?);
     }
 
     Ok(Value::Array(items))
 }
 
+/// The schema slot `index` draws from: a `contains` satisfier schema when the
+/// slot was picked for one, otherwise the positional `prefixItems` schema, and
+/// `items` beyond the prefix.
+fn slot_schema<'a>(
+    prefix_items: &'a [Value],
+    item_schema: &'a Value,
+    satisfier_slots: &'a [(usize, Value)],
+    index: usize,
+) -> &'a Value {
+    satisfier_slots
+        .iter()
+        .find(|(slot, _)| *slot == index)
+        .map(|(_, schema)| schema)
+        .unwrap_or_else(|| prefix_items.get(index).unwrap_or(item_schema))
+}
+
+/// Pick `min_contains` of the `count` slots to generate from the merge of
+/// their own schema and `contains`.
+///
+/// Slots past the prefix are preferred, since their schema is `items` alone;
+/// a prefix slot has to merge its positional schema too, which is likelier to
+/// conflict. Slots whose merge conflicts are skipped, so a `contains` that is
+/// compatible with only some positions still works; when too few slots merge,
+/// the conflict is reported.
+fn choose_satisfier_slots(
+    ctx: &Context,
+    prefix_items: &[Value],
+    item_schema: &Value,
+    contains: &Value,
+    count: usize,
+    min_contains: usize,
+    rng: &mut impl Rng,
+) -> Result<Vec<(usize, Value)>, Error> {
+    let mut past_prefix: Vec<usize> = (prefix_items.len().min(count)..count).collect();
+    let mut within_prefix: Vec<usize> = (0..prefix_items.len().min(count)).collect();
+    shuffle(&mut past_prefix, rng);
+    shuffle(&mut within_prefix, rng);
+
+    let mut slots = Vec::with_capacity(min_contains);
+    let mut conflict = None;
+    for index in past_prefix.into_iter().chain(within_prefix) {
+        let base = prefix_items.get(index).unwrap_or(item_schema);
+        match merge_into_schema(ctx, base, contains) {
+            Ok(merged) => {
+                slots.push((index, merged));
+                if slots.len() == min_contains {
+                    return Ok(slots);
+                }
+            }
+            Err(e) => conflict = Some(e),
+        }
+    }
+
+    Err(match conflict {
+        Some(e) => e,
+        None => Error::ConflictingConstraints {
+            message: format!(
+                "minContains ({min_contains}) needs more slots than the {count} generated"
+            ),
+        },
+    })
+}
+
+/// The conjunction of two sub-schemas, as a schema object.
+fn merge_into_schema(ctx: &Context, base: &Value, addition: &Value) -> Result<Value, Error> {
+    let mut target = match base {
+        Value::Bool(true) => Map::new(),
+        Value::Object(o) => o.clone(),
+        Value::Bool(false) => {
+            return Err(Error::ConflictingConstraints {
+                message: "items is false, so no element can satisfy contains".into(),
+            });
+        }
+        other => {
+            return Err(Error::InvalidSchema {
+                message: format!("schema must be a boolean or object, got {other}"),
+            });
+        }
+    };
+    merge_schema(ctx, &mut target, addition)?;
+    Ok(Value::Object(target))
+}
+
+fn shuffle(slots: &mut [usize], rng: &mut impl Rng) {
+    for i in (1..slots.len()).rev() {
+        slots.swap(i, rng.random_range(0..=i));
+    }
+}
+
 /// Attempts per array slot before concluding the item space is exhausted.
 const UNIQUE_ITEM_RETRIES: usize = 16;
 
 /// Generate `count` distinct items, retrying each slot on collision.
-/// Slots within the prefix draw from their positional `prefixItems` schema,
-/// the rest from `item_schema`. When a slot cannot be filled, any length at
-/// or above `min_items` is still valid, so the array is returned short;
-/// below `min_items` the constraints are unsatisfiable.
+/// Each slot draws from [`slot_schema`]. When a slot cannot be filled, any
+/// length at or above `min_items` is still valid, so the array is returned
+/// short — unless a `contains` satisfier slot is still ahead, which stopping
+/// early would drop. Below `min_items`, or with a satisfier slot unfilled, the
+/// constraints are unsatisfiable.
 fn generate_unique_array(
     ctx: &Context,
     prefix_items: &[Value],
     item_schema: &Value,
+    satisfier_slots: &[(usize, Value)],
     min_items: usize,
     count: usize,
     rng: &mut impl Rng,
 ) -> Result<Value, Error> {
     let mut items: Vec<Value> = Vec::with_capacity(count);
     while items.len() < count {
-        let slot_schema = prefix_items.get(items.len()).unwrap_or(item_schema);
+        let slot_schema = slot_schema(prefix_items, item_schema, satisfier_slots, items.len());
         let mut filled = false;
         for _ in 0..UNIQUE_ITEM_RETRIES {
             let candidate = generate_value(ctx, slot_schema, rng)?;
@@ -1028,14 +1171,22 @@ fn generate_unique_array(
             }
         }
         if !filled {
-            if items.len() >= min_items {
+            let satisfiers_pending = satisfier_slots.iter().any(|(slot, _)| *slot >= items.len());
+            if items.len() >= min_items && !satisfiers_pending {
                 break;
             }
+            let found = items.len();
             return Err(Error::ConflictingConstraints {
-                message: format!(
-                    "uniqueItems: found only {} distinct items, minItems is {min_items}",
-                    items.len()
-                ),
+                message: if satisfiers_pending {
+                    format!(
+                        "uniqueItems: found only {found} distinct items, too few to also satisfy \
+                         contains"
+                    )
+                } else {
+                    format!(
+                        "uniqueItems: found only {found} distinct items, minItems is {min_items}"
+                    )
+                },
             });
         }
     }
